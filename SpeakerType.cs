@@ -4,12 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.ApsManager.Enums
+namespace APS_1.ApsManager
 {
     public enum SpeakerType
     {
-        Parlator, 
-        Informator, 
-        Eksplorator
+        Parlator, Informator, Eksplorator
     }
 }

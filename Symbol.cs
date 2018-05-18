@@ -1,10 +1,11 @@
-﻿using System;
+﻿using APS_1.Symbols.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Symbols
+namespace APS_1.Symbols
 {
     public class Symbol
     {
@@ -15,7 +16,7 @@ namespace APS_2.Symbols
         public string Simplified { get; set; }
 
         public string XSampa { get; set; }
-
+                        
 
         public Symbol() { }
 
@@ -31,7 +32,7 @@ namespace APS_2.Symbols
         {
             this.IPA = symbol;
             this.SPA = symbol;
-            this.Simplified = symbol;
+            this.Simplified = symbol; 
             this.XSampa = symbol;
         }
 

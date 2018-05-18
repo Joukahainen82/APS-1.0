@@ -1,15 +1,15 @@
-﻿using APS_2.Phonetics.Enums;
-using APS_2.ApsManager;
-using APS_2.ApsManager.Enums;
+﻿using APS_1.ApsManager;
+using APS_1.Phonetics.Enums;
+using APS_1.Symbols;
+using APS_1.Symbols.Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using APS_2.Symbols;
 
-namespace APS_2.Phonetics
+namespace APS_1.Phonetics
 {
     public class Phone
     {
@@ -18,6 +18,7 @@ namespace APS_2.Phonetics
 
 
         public Reading Reading { get; set; }
+
 
         public int PhoneNo { get; set; }
 
@@ -31,7 +32,7 @@ namespace APS_2.Phonetics
 
         public PhoneContext Context { get; set; }
 
-        //public Example Example { get; set; }
+        public Example Example { get; set; }
 
         public Nullable<Nasality> Nasality { get; set; }
 
@@ -41,9 +42,11 @@ namespace APS_2.Phonetics
 
         public Nullable<MannerOfArticulation> MannerOfArticulation { get; set; }
 
-        public Nullable<Rhoticity> Retroflex { get; set; }
+        public Nullable<Rhoticity> Retroflex { get; set;} 
 
         //public Nullable<DiacriticPlace> IfDiacritic { get; set; }
+
+                
 
         /// <summary>
         /// Liczba symboli, na które oddziałuje symbol przypisany temu fonowi. Dla symboli literowych wynosi 0, dla diakrytów jest ujemny (jeśli diakryt odnosi się do symboli poprzedzajacych) lub dodatni (jeśli do następujących).
@@ -59,7 +62,7 @@ namespace APS_2.Phonetics
             this.Speaker = null;
             this.Phonation = null;
             this.Context = null;
-            //this.Example = null;
+            this.Example = null;
             this.Length = null;
 
             this.DiacriticImpact = diacriticImpact;
@@ -71,16 +74,16 @@ namespace APS_2.Phonetics
             this.DiacriticImpact = diacriticImpact;
             this.Symbol = symbol;
             this.Roundness = roundness;
-
+            
             this.Length = null;
-            //this.Example = null;
+            this.Example = null;
             this.Nasality = null;
             this.Context = null;
             this.Speaker = null;
-            this.Phonation = null;
+            this.Phonation = null;             
         }
 
-        public Phone(Rhoticity rhoticity, Symbol symbol = null, int diacriticImpact = 0)
+        public Phone (Rhoticity rhoticity, Symbol symbol = null, int diacriticImpact = 0)
         {
             this.Retroflex = rhoticity;
             this.Symbol = symbol;
@@ -93,8 +96,9 @@ namespace APS_2.Phonetics
             this.Phonation = phone.Phonation;
             this.Nasality = phone.Nasality;
             this.Length = phone.Length;
-            //this.Example = phone.Example;
+            this.Example = phone.Example;
             this.Context = phone.Context;
+            this.MannerOfArticulation = phone.MannerOfArticulation;
 
             this.DiacriticImpact = diacriticImpact;
 
@@ -162,19 +166,19 @@ namespace APS_2.Phonetics
                 Phonation = phone.Phonation == null ? cons.Phonation : phone.Phonation,
 
                 MannerOfArticulation = phone.MannerOfArticulation == null ? cons.MannerOfArticulation : phone.MannerOfArticulation,
+                Roundness = phone.Roundness == null ? cons.Roundness : phone.Roundness,
 
                 PlaceOfArticulation = cons.PlaceOfArticulation,
-                Roundness = cons.Roundness,
                 Palatalization = cons.Palatalization,
                 Retroflex = cons.Retroflex,
 
                 Context = phone.Context == null ? cons.Context : phone.Context,
-                //Example = phone.Example == null ? cons.Example : phone.Example,
+                Example = phone.Example == null ? cons.Example : phone.Example,
                 Speaker = phone.Speaker == null ? cons.Speaker : phone.Speaker,
                 Length = phone.Length == null ? cons.Length : phone.Length,
 
                 DiacriticImpact = cons.DiacriticImpact,
-
+                
             };
         }
 
@@ -183,29 +187,29 @@ namespace APS_2.Phonetics
         {
             return new Vowel()
             {
-                MannerOfArticulation = p.MannerOfArticulation == null ? v.MannerOfArticulation : p.MannerOfArticulation,
-
-                Stress = v.Stress,
+                MannerOfArticulation = p.MannerOfArticulation == null ? v.MannerOfArticulation : p.MannerOfArticulation,                
+                
+                Stress = v.Stress, 
 
                 Frontness = v.Frontness,
                 Height = v.Height,
                 Rhoticity = v.Rhoticity,
                 Frequency = v.Frequency,
                 AvgFrequency = v.AvgFrequency,
-                Retroflex = v.Retroflex,
-                Symbol = v.Symbol,
+                Retroflex = v.Retroflex, 
+                Symbol = v.Symbol, 
 
                 Roundness = p.Roundness == null ? v.Roundness : p.Roundness,
                 Nasality = p.Nasality == null ? v.Nasality : p.Nasality,
-                Phonation = p.Phonation == null ? v.Phonation : p.Phonation,
+                Phonation = p.Phonation == null ? v.Phonation : p.Phonation,                
 
                 Speaker = p.Speaker == null ? v.Speaker : p.Speaker,
                 Length = p.Length == null ? v.Length : p.Length,
                 Context = p.Context == null ? v.Context : p.Context,
-                //Example = p.Example == null ? v.Example : p.Example,
+                Example = p.Example == null ? v.Example : p.Example,
 
                 DiacriticImpact = v.DiacriticImpact,
-
+                
 
             };
         }
@@ -244,6 +248,27 @@ namespace APS_2.Phonetics
 
         #endregion
 
+
+        /// <summary>
+        /// Sprawdza, czy dwa fony są identyczne (czy wszystkie ich cechy są takie same).
+        /// </summary>
+        /// <param name="phone">Porównywany fon.</param>
+        /// <returns>"True", jeśli oba fony są identyczne.</returns>
+        public virtual bool Equals(Phone phone)
+        {
+            var c1 = phone.Length == this.Length;
+            var c2 = phone.MannerOfArticulation == this.MannerOfArticulation;
+            var c3 = phone.Nasality == this.Nasality;
+            var c4 = phone.Phonation == this.Phonation;
+            var c5 = phone.Retroflex == this.Retroflex;
+            var c6 = phone.Roundness == this.Roundness;
+
+            return c1 && c2 && c3 && c4 && c5 && c6;
+        }
+
+        
+
+
     }
 
 
@@ -268,23 +293,22 @@ namespace APS_2.Phonetics
 
         #region: Constructors
 
-        public Vowel()
-            : base()
+        public Vowel() : base()
         {
-            this.MannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel;
+            this.MannerOfArticulation = Enums.MannerOfArticulation.vowel;
             this.Frontness = null;
             this.Height = null;
             this.Roundness = null;
             this.Rhoticity = null;
         }
 
-        public Vowel(Frontness frontness) : base() { this.Frontness = frontness; this.MannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel; }
+        public Vowel(Frontness frontness) : base() { this.Frontness = frontness; this.MannerOfArticulation = Enums.MannerOfArticulation.vowel; }
 
-        public Vowel(Height height) : base() { this.Height = height; this.MannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel; }
+        public Vowel(Height height) : base() { this.Height = height; this.MannerOfArticulation = Enums.MannerOfArticulation.vowel; }
 
-        public Vowel(Nasality nasality) : base() { this.Nasality = nasality; this.MannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel; }
+        public Vowel(Nasality nasality) : base() { this.Nasality = nasality; this.MannerOfArticulation = Enums.MannerOfArticulation.vowel; }
 
-        public Vowel(Roundness roundness) : base() { this.Roundness = roundness; this.MannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel; }
+        public Vowel(Roundness roundness) : base() { this.Roundness = roundness; this.MannerOfArticulation = Enums.MannerOfArticulation.vowel; }
 
         public Vowel(MannerOfArticulation mannerOfArticulation, Symbol symbol = null)
         {
@@ -298,7 +322,7 @@ namespace APS_2.Phonetics
 
             this.AvgFrequency = vowel.AvgFrequency;
             this.Context = vowel.Context;
-            //this.Example = vowel.Example;
+            this.Example = vowel.Example;
             this.Frequency = vowel.Frequency;
             this.Frontness = vowel.Frontness;
             this.Height = vowel.Height;
@@ -314,17 +338,15 @@ namespace APS_2.Phonetics
             this.Symbol = symbol;
         }
 
-        public Vowel(Stress stress, Symbol symbol = null, int diacriticImpact = 0)
-            : base(symbol, diacriticImpact)
+        public Vowel(Stress stress, Symbol symbol = null, int diacriticImpact = 0) : base(symbol, diacriticImpact) 
         {
-            this.MannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel;
+            this.MannerOfArticulation = Enums.MannerOfArticulation.vowel;
             this.Stress = stress;
         }
 
-        public Vowel(string symbol)
-            : base(symbol)
+        public Vowel(string symbol) : base(symbol)
         {
-            this.MannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel;
+            this.MannerOfArticulation = Enums.MannerOfArticulation.vowel;
 
             this.Frontness = null;
             this.Height = null;
@@ -332,7 +354,7 @@ namespace APS_2.Phonetics
             this.Rhoticity = null;
         }
 
-        public Vowel(Frontness frontness, Height height, Nasality nasality, Symbol symbol, Roundness roundness, Phonation phonation = APS_2.Phonetics.Enums.Phonation.voiced, Rhoticity rhoticity = APS_2.Phonetics.Enums.Rhoticity.nonRhotic, MannerOfArticulation mannerOfArticulation = APS_2.Phonetics.Enums.MannerOfArticulation.vowel)
+        public Vowel(Frontness frontness, Height height, Nasality nasality, Symbol symbol, Roundness roundness, Phonation phonation = Phonetics.Phonation.voiced, Rhoticity rhoticity = Phonetics.Rhoticity.nonRhotic, MannerOfArticulation mannerOfArticulation = Enums.MannerOfArticulation.vowel)
             : base()
         {
             this.MannerOfArticulation = mannerOfArticulation;
@@ -360,13 +382,13 @@ namespace APS_2.Phonetics
                 Roundness = v2.Roundness == null ? v1.Roundness : v2.Roundness,
                 Rhoticity = v2.Rhoticity == null ? v1.Rhoticity : v2.Rhoticity,
 
-                Stress = v2.Stress == null ? v1.Stress : v2.Stress,
-                MannerOfArticulation = v2.MannerOfArticulation == null ? v1.MannerOfArticulation : v2.MannerOfArticulation,
-                Retroflex = v2.Retroflex == null ? v1.Retroflex : v2.Retroflex,
+                Stress = v2.Stress == null ? v1.Stress : v2.Stress, 
+                MannerOfArticulation = v2.MannerOfArticulation == null ? v1.MannerOfArticulation : v2.MannerOfArticulation, 
+                Retroflex = v2.Retroflex == null ? v1.Retroflex : v2.Retroflex, 
 
                 AvgFrequency = v2.AvgFrequency == null ? v1.AvgFrequency : v2.AvgFrequency,
                 Context = v2.Context == null ? v1.Context : v2.Context,
-                //Example = v2.Example == null ? v1.Example : v2.Example,
+                Example = v2.Example == null ? v1.Example : v2.Example,
                 Frequency = v2.Frequency == null ? v1.Frequency : v2.Frequency,
                 Length = v2.Length == null ? v1.Length : v2.Length,
                 Phonation = v2.Phonation == null ? v1.Phonation : v2.Phonation,
@@ -382,10 +404,10 @@ namespace APS_2.Phonetics
         {
             return new Vowel()
             {
-                Frontness = v.Frontness,
-                Height = v.Height,
-                Nasality = v.Nasality == null ? c.Nasality : v.Nasality,
-                Roundness = v.Roundness == null ? c.Roundness : v.Roundness,
+                Frontness = v.Frontness, 
+                Height = v.Height, 
+                Nasality = v.Nasality == null ? c.Nasality : v.Nasality, 
+                Roundness = v.Roundness == null ? c.Roundness : v.Roundness, 
                 Rhoticity = v.Rhoticity,
 
                 Stress = v.Stress,
@@ -393,7 +415,7 @@ namespace APS_2.Phonetics
 
                 AvgFrequency = v.AvgFrequency,
                 Context = v.Context == null ? c.Context : v.Context,
-                //Example = v.Example == null ? c.Example : v.Example,
+                Example = v.Example == null ? c.Example : v.Example,
                 Frequency = v.Frequency,
                 Length = v.Length == null ? c.Length : v.Length,
                 Phonation = v.Phonation == null ? c.Phonation : v.Phonation,
@@ -420,7 +442,7 @@ namespace APS_2.Phonetics
 
                 AvgFrequency = v.AvgFrequency,
                 Context = v.Context == null ? p.Context : v.Context,
-                //Example = v.Example == null ? p.Example : v.Example,
+                Example = v.Example == null ? p.Example : v.Example,
                 Frequency = v.Frequency,
                 Length = v.Length == null ? p.Length : v.Length,
                 Phonation = v.Phonation == null ? p.Phonation : v.Phonation,
@@ -433,6 +455,30 @@ namespace APS_2.Phonetics
         }
 
         #endregion
+
+
+        /// <summary>
+        /// Sprawdza, czy dwa fony są identyczne (czy wszystkie ich cechy są takie same).
+        /// </summary>
+        /// <param name="phone">Porównywany fon.</param>
+        /// <returns>"True", jeśli oba fony są identyczne.</returns>
+        public override bool Equals(Phone phone)
+        {
+            var c1 = phone.Length == this.Length;
+            var c2 = phone.MannerOfArticulation == this.MannerOfArticulation;
+            var c3 = phone.Nasality == this.Nasality;
+            var c4 = phone.Phonation == this.Phonation;
+            var c5 = phone.Retroflex == this.Retroflex;
+            var c6 = phone.Roundness == this.Roundness;
+
+            var c7 = phone.GetType() == typeof(Vowel) ? ((Vowel)phone).Frontness == this.Frontness : true;
+            var c8 = phone.GetType() == typeof(Vowel) ? ((Vowel)phone).Height == this.Height : true;
+            var c9 = phone.GetType() == typeof(Vowel) ? ((Vowel)phone).Rhoticity == this.Rhoticity : true;
+            var c10 = phone.GetType() == typeof(Vowel) ? ((Vowel)phone).Stress == this.Stress : true;
+            
+            return c1 && c2 && c3 && c4 && c5 && c6 && c7 && c8 && c9 && c10;
+        }
+
 
     }
 
@@ -449,11 +495,10 @@ namespace APS_2.Phonetics
 
         #region: Constructors
 
-        public Consonant(Consonant phone, Symbol symbol, int diacriticImpact = 0)
-            : base(symbol, diacriticImpact)
+        public Consonant(Consonant phone, Symbol symbol, int diacriticImpact = 0) : base(symbol, diacriticImpact)
         {
             this.Context = phone.Context;
-            //this.Example = phone.Example;
+            this.Example = phone.Example;            
             this.Length = phone.Length;
             this.MannerOfArticulation = phone.MannerOfArticulation;
             this.Nasality = phone.Nasality;
@@ -461,13 +506,12 @@ namespace APS_2.Phonetics
             this.Phonation = phone.Phonation;
             this.PlaceOfArticulation = phone.PlaceOfArticulation;
             this.Roundness = phone.Roundness;
-            this.Speaker = phone.Speaker;
+            this.Speaker = phone.Speaker;            
 
             this.Symbol = symbol;
         }
 
-        public Consonant(Symbol symbol = null, int diacriticImpact = 0)
-            : base(symbol, diacriticImpact)
+        public Consonant(Symbol symbol = null, int diacriticImpact = 0) : base(symbol, diacriticImpact)
         {
             this.Nasality = null;
             this.Roundness = null;
@@ -485,12 +529,12 @@ namespace APS_2.Phonetics
         public Consonant(Palatalization palatalization, Symbol symbol = null, int diacriticImpact = 0) : base(symbol, diacriticImpact) { this.Palatalization = palatalization; }
 
         public Consonant(
-            PlaceOfArticulation placeOfArticulation,
-            MannerOfArticulation mannerOfArticulation,
-            Nullable<Phonation> phonation,
-            Nullable<Nasality> nasality,
-            Symbol symbol,
-            Roundness roundness = APS_2.Phonetics.Enums.Roundness.unrounded,
+            PlaceOfArticulation placeOfArticulation, 
+            MannerOfArticulation mannerOfArticulation, 
+            Nullable<Phonation> phonation, 
+            Nullable<Nasality> nasality, 
+            Symbol symbol, 
+            Roundness roundness = Phonetics.Roundness.unrounded,
             int diacriticImpact = 0)
             : base(symbol, diacriticImpact)
         {
@@ -519,7 +563,7 @@ namespace APS_2.Phonetics
                 Palatalization = c2.Palatalization == null ? c1.Palatalization : c2.Palatalization,
 
                 Context = c2.Context == null ? c1.Context : c2.Context,
-                //Example = c2.Example == null ? c1.Example : c2.Example,
+                Example = c2.Example == null ? c1.Example : c2.Example,
                 Speaker = c2.Speaker == null ? c1.Speaker : c2.Speaker,
                 Length = c2.Length == null ? c1.Length : c2.Length,
 
@@ -534,7 +578,7 @@ namespace APS_2.Phonetics
             return new Consonant()
             {
                 Context = c.Context == null ? v.Context : c.Context,
-                //Example = c.Example == null ? v.Example : c.Example,
+                Example = c.Example == null ? v.Example : c.Example,
                 Speaker = c.Speaker == null ? v.Speaker : c.Speaker,
                 Length = c.Length == null ? v.Length : c.Length,
 
@@ -557,7 +601,7 @@ namespace APS_2.Phonetics
             return new Consonant()
             {
                 Context = c.Context == null ? p.Context : c.Context,
-                //Example = c.Example == null ? p.Example : c.Example,
+                Example = c.Example == null ? p.Example : c.Example,
                 Speaker = c.Speaker == null ? p.Speaker : c.Speaker,
                 Length = c.Length == null ? p.Length : c.Length,
 
@@ -577,6 +621,27 @@ namespace APS_2.Phonetics
 
         #endregion
 
+
+        /// <summary>
+        /// Sprawdza, czy dwa fony są identyczne (czy wszystkie ich cechy są takie same).
+        /// </summary>
+        /// <param name="phone">Porównywany fon.</param>
+        /// <returns>"True", jeśli oba fony są identyczne.</returns>
+        public override bool Equals(Phone phone)
+        {
+            var c1 = phone.Length == this.Length;
+            var c2 = phone.MannerOfArticulation == this.MannerOfArticulation;
+            var c3 = phone.Nasality == this.Nasality;
+            var c4 = phone.Phonation == this.Phonation;
+            var c5 = phone.Retroflex == this.Retroflex;
+            var c6 = phone.Roundness == this.Roundness;
+
+            var c7 = phone.GetType() == typeof(Consonant) ? ((Consonant)phone).Palatalization == this.Palatalization : true;
+            var c8 = phone.GetType() == typeof(Consonant) ? ((Consonant)phone).PlaceOfArticulation == this.PlaceOfArticulation : true;
+            
+            return c1 && c2 && c3 && c4 && c5 && c6 && c7 && c8;
+        }
+
     }
 
 
@@ -591,7 +656,7 @@ namespace APS_2.Phonetics
             this.Symbol = new Symbol(symbol);
         }
 
-        public static Juncture operator +(Juncture j, Phone p)
+        public static Juncture operator + (Juncture j, Phone p)
         {
             return new Juncture()
             {

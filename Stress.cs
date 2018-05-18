@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Phonetics.Enums
+namespace APS_1.Phonetics.Enums
 {
     public enum Stress
     {
-        unstressed,
+        unstressed, 
         stressed
     }
 }

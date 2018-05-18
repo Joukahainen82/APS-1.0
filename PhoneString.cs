@@ -1,4 +1,8 @@
-﻿using System;
+﻿using APS_1.ApsManager;
+using APS_1.Symbols;
+using APS_1.Symbols.Enums;
+using APS_1.Symbols.Library;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,18 +10,24 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
-using APS_2.ApsManager;
-using APS_2.Symbols.Library;
-using APS_2.Phonetics.Enums;
-using APS_1.Symbols.Enums;
-using APS_2.Symbols;
-using APS_2.ApsManager.Enums;
+using APS_1.Phonetics.Enums;
 
-namespace APS_2.Phonetics
+namespace APS_1.Phonetics
 {
     public class PhoneString
     {
         public List<List<Phone>> PhoneReading { get; set; }
+
+
+        private static readonly Frequency[] typicalFrequencies = new[] {
+            new Frequency(100, 400, 1400, 3000), 
+            new Frequency(1000, 2800, 4000, 5000)
+        };
+
+
+
+
+        public delegate bool Comparer(Reading reading, List<Reading> readings);
 
 
         public PhoneString()
@@ -56,6 +66,9 @@ namespace APS_2.Phonetics
                 AddInfoOnSpeakers(r, speakers);
 
 
+                //add info on readings
+                AddInfoOnReadings(r);
+
                 //add examples                
 
 
@@ -72,280 +85,1315 @@ namespace APS_2.Phonetics
 
 
 
-        public static void AddContexts7(List<Reading> readings, List<Phone> auxPhones)
+        public static void TagContext2(List<Reading> readings, Comparer method, List<Comparer> exceptions, ContextType contextType)
         {
-            int index = -1;
-
             foreach (var r in readings)
             {
-                foreach (var p in r.PhoneStringA)
-                {
-                    index += 1;
-
-                    p.Context = new PhoneContext();
-
-                    for (int i = 0, j = index - 1; i < 3 && j >= 0; i++, j--)
-                    {
-                        p.Context.Left.Add(auxPhones[j]);
-                    }
-
-                    for (int i = 0, j = index + 1; i < 3 && j < auxPhones.Count; i++, j++)
-                    {
-                        p.Context.Right.Add(auxPhones[j]);
-                    }
-
-                    var left = p.Context.Left.Count > 0 ? p.Context.Left[0].Symbol.IPA : "#";
-                    var right = p.Context.Right.Count > 0 ? p.Context.Right[0].Symbol.IPA : "#";
-
-                    Debug.WriteLine("Phone: [{0}]. Left: [{1}]. Right: [{2}]. LeftSize: {3}. RightSize: {4}", 
-                        p.Symbol.IPA, left, right, p.Context.Left.Count, p.Context.Right.Count, "");
-
-
-                }
-            }
-
-
-
-
-
-
-
-
-
-
-
-
-            var leftTemp = new List<Phone>();
-
-            var rightTemp = new List<Phone>(auxPhones);
-
-            for (int i = 0; i < auxPhones.Count; i++)
-            {
-                auxPhones[i].Context = new PhoneContext();
-
-
-                var temp = new List<Phone>(leftTemp);
-
-                temp.Reverse();
-
-                auxPhones[i].Context.Left.AddRange(temp);
-
-                rightTemp.RemoveAt(0);
-
-                auxPhones[i].Context.Right.AddRange(rightTemp);
-
-                leftTemp.Add(auxPhones[i]);
-
-                var l = auxPhones[i].Context.Left.Count > 0 ? auxPhones[i].Context.Left[0].Symbol.IPA : "#";
-                var r = auxPhones[i].Context.Right.Count > 0 ? auxPhones[i].Context.Right[0].Symbol.IPA : "#";
-
-                Debug.WriteLine("Phone: [{0}]. Left: {1}. Right {2}", auxPhones[i].Symbol.IPA, l, r, "");
-            }
-
-
-
-        }
-
-
-
-
-
-
-
-        public static void AddContexts6(List<Phone> auxPhones)
-        {
-            var leftTemp = new List<Phone>();
-
-            var rightTemp = new List<Phone>(auxPhones);
-
-            for (int i = 0; i < auxPhones.Count; i++)
-            {
-                auxPhones[i].Context = new PhoneContext();
-
-
-                var temp = new List<Phone>(leftTemp);
-
-                temp.Reverse();
                 
-                auxPhones[i].Context.Left.AddRange(temp);
+                if (method(r, readings))
+                {
+                    bool appliable = true;
 
-                rightTemp.RemoveAt(0);
+                    foreach (var e in exceptions)
+                    {
+                        if (e(r, readings))
+                        {
+                            appliable = false;
+                            break;
+                        }
+                    }
 
-                auxPhones[i].Context.Right.AddRange(rightTemp);
+                    if (appliable)
+                    {
+                        ApplyContexts(r, contextType);
+                    }
+                }
 
-                leftTemp.Add(auxPhones[i]);
-                                
-                var l = auxPhones[i].Context.Left.Count > 0 ? auxPhones[i].Context.Left[0].Symbol.IPA : "#";
-                var r = auxPhones[i].Context.Right.Count > 0 ? auxPhones[i].Context.Right[0].Symbol.IPA : "#";
-
-                Debug.WriteLine("Phone: [{0}]. Left: {1}. Right {2}", auxPhones[i].Symbol.IPA, l, r, "");
             }
-                                    
+        }
+
+
+
+
+        public static void TagContext(List<Reading> readings, Comparer method, ContextType contextType)
+        {
+            foreach (var r in readings)
+            {
+                if (method(r, readings)) ApplyContexts(r, contextType);
+            }
+        }
+
+
+
+
+
+        /// <summary>
+        /// Sprawdza wszystkie fony w każdym odczycie i przypisuje im oznaczenie kontekstu, jeśli tylko dany fon spełnia odpowiednie kryteria. 
+        /// </summary>
+        /// <param name="readings"></param>
+        public static void TagContexts(ref List<Reading> readings)
+        {
+            foreach (var r in readings)
+            {
+                if (V_neutral(r, readings)) ApplyContexts(r, ContextType.V_neutral);
+                if (Ṽ_(r, readings)) ApplyContexts(r, ContextType.Ṽ_);
+                if (Ṽ_S(r, readings)) ApplyContexts(r, ContextType.Ṽ_S);
+                if (Ṽ_T(r, readings)) ApplyContexts(r, ContextType.Ṽ_T);
+                if (V_ł(r, readings)) ApplyContexts(r, ContextType.V_ł);
+                if (V_l(r, readings)) ApplyContexts(r, ContextType.V_l);
+                if (V_rz(r, readings)) ApplyContexts(r, ContextType.V_rz);
+                if (V_r(r, readings)) ApplyContexts(r, ContextType.V_r);
+                if (V_j(r, readings)) ApplyContexts(r, ContextType.V_j);
+                if (cz_V(r, readings)) ApplyContexts(r, ContextType.cz_V);
+                if (rz_V(r, readings)) ApplyContexts(r, ContextType.rz_V);
+                if (ć_V_N(r, readings)) ApplyContexts(r, ContextType.ć_V_N);
+                if (V_N(r, readings)) ApplyContexts(r, ContextType.V_N);
+
+                if (r.ContextType.Count == 0) r.ContextType.Add(ContextType.unspecified);
+            }
+
+        }
+
+
+
+
+        private static void ApplyContexts(Reading reading, ContextType contextType)
+        {
+            if (reading.ContextType.Contains(ContextType.unspecified)) reading.ContextType.Remove(ContextType.unspecified);
+
+            reading.ContextType.Add(contextType);
+
+            //Debug.WriteLine("AFTER APPLY CONTEXT THE NUMBER OF CONTEXTS: {0}", reading.ContextType.Count);
+
+            //foreach (var i in reading.PhoneStringA)
+            //{
+            //    i.Context.ContextType.Add(contextType);
+            //}
+
+            //foreach (var i in reading.PhoneStringG)
+            //{
+            //    i.Context.ContextType.Add(contextType);
+            //}
+
+            //foreach (var i in reading.PhoneStringO)
+            //{
+            //    i.Context.ContextType.Add(contextType);
+            //}
+
+            //foreach (var i in reading.PhoneStringS)
+            //{
+            //    i.Context.ContextType.Add(contextType);
+            //}
+
+        }
+
+
+
+
+        #region Contexts checkers
+
+
+        /// <summary>
+        /// Sprawdza obecność kontekstu neutralnego dla samogłoski
+        /// </summary>
+        /// <returns></returns>
+        public static bool V_neutral(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con0 = false, con1 = false, con2 = false, con3 = false, con4 = false, con5 = false, con6 = false, con7 = false, con8 = false, con9 = false;
+
+            //warunek 0: pojedyncza samogłoska w transkrypcji S i A
+            con0 = ContainsOnlyVowel(reading, Transcriptions.transcriptionS)
+                &&
+                ContainsOnlyVowel(reading, Transcriptions.transcriptionA);
+
+            //warunek 1: samogłoska NIE jest w kontekście V_N
+            con1 = !V_N(reading, readings);
+
+            //warunek 2: samogłoska NIE jest w kontekście ć_V_V
+            con2 = !ć_V_N(reading, readings);
+
+            //warunek 3: samogłoska NIE jest w kontekście V_r
+            con3 = !V_r(reading, readings);
+
+            //warunek 4: samogłoska NIE jest w kontekście V_rz
+            con4 = !V_rz(reading, readings);
+
+            //warunek 5: samogłoska NIE jest w kontekście V_l
+            con5 = !V_l(reading, readings);
+
+            //warunek 6: samogłoska NIE jest w kontekście V_ł
+            con6 = !V_ł(reading, readings);
+
+            //warunek 7: samogłoska NIE jest w kontekście V_j
+            con7 = !V_j(reading, readings);
+
+            //warunek 8: samogłoska NIE jest w kontekście rz_V
+            con8 = !rz_V(reading, readings);
+
+            //warunek 9: samogłoska NIE jest w kontekście cz_V
+            con9 = !cz_V(reading, readings);
+
+
+            //wszystkie warunki muszą być spełnione
+            return con0 && con1 && con2 && con3 && con4 && con5 && con6 && con7 && con8 && con9;
+
+        }
+
+
+        
+        /// <summary>
+        /// Samogłoska nosowa (transkrypcja S) w wygłosie.
+        /// </summary>
+        /// <param name="reading"></param>
+        /// <param name="readings"></param>
+        /// <returns></returns>
+        public static bool Ṽ_(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false, con4 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Parlator || reading.SpeakerType == SpeakerType.Informator;
+
+            //warunek 2: pojedyncza samogłoska w transkypcji A i S
+            con2 = ContainsOnlyVowel(reading, Transcriptions.transcriptionA)
+                    &&
+                    ContainsOnlyVowel(reading, Transcriptions.transcriptionS);
+
+            //warunek 3: junktura/pauza w wygłosie bieżącego odczytu lub w nagłosie następnego
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    int n = reading.PhoneStringS.Count - 1;
+
+                    con3 = reading.PhoneStringS[n].GetType() == typeof(Juncture)
+                        ||
+                        reading.PhoneStringS[n].GetType() == typeof(Pause)
+                        ||
+                        reading.PhoneStringS[n].Context.Right[0].GetType() == typeof(Juncture)
+                        ||
+                        reading.PhoneStringS[n].Context.Right[0].GetType() == typeof(Pause);
+
+                }
+
+                //warunek 4: samogłoska nosowa w transkrypcji S
+                con4 = reading.PhoneStringS[0].MannerOfArticulation == MannerOfArticulation.vowel
+                        &&
+                        reading.PhoneStringS[0].Nasality == Nasality.nasal;
+
+            }
+
+
+            //wszystkie warunki muszą być spełnione 
+            return con1 && con2 && con3 && con4;
+
+        }
+
+        
+        
+        public static bool Ṽ_S(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false, con4 = false, con5 = false, con6 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Parlator || reading.SpeakerType == SpeakerType.Informator;
+
+            //warunek 2: pojedyncza samogłoska w transkypcji A i S
+            con2 = ContainsOnlyVowel(reading, Transcriptions.transcriptionA)
+                    &&
+                    ContainsOnlyVowel(reading, Transcriptions.transcriptionS);
+
+            //warunek 3 i 4: spółgłoska trąca, nienosowa w nagłosie następnego segmentu transkrypcji S
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    con3 = reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.fricative;
+
+                    con4 = reading.PhoneStringS[0].Context.Right[0].Nasality != Nasality.nasal;
+                }
+
+                //warunek 5: samogłoska nosowa w transkrypcji S
+                con5 = reading.PhoneStringS[0].MannerOfArticulation == MannerOfArticulation.vowel
+                        &&
+                        reading.PhoneStringS[0].Nasality == Nasality.nasal;
+
+                //warunek 6: w bieżącym odczycie nie ma pauzy lub junktury
+                con6 = !reading.PhoneStringS.Contains(new Juncture())
+                    &&
+                    !reading.PhoneStringS.Contains(new Pause());
+            }
+
+
+            //wszystkie warunki muszą być spełnione 
+            return con1 && con2 && con3 && con4 && con5 && con6;
+
+        }
+
+        
+
+        /// <summary>
+        /// Czy po dawnej (transkrypcja S) samogłosce nosowej znajduje się spółgłoska zwarta. 
+        /// </summary>
+        public static bool Ṽ_T(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false, con4 = false, con5 = false, con6 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Parlator || reading.SpeakerType == SpeakerType.Informator;
+
+            //warunek 2: pojedyncza samogłoska w transkypcji A i S
+            con2 = ContainsOnlyVowel(reading, Transcriptions.transcriptionA)
+                    &&
+                    ContainsOnlyVowel(reading, Transcriptions.transcriptionS);
+
+            //warunek 3 i 4: spółgłoska zwarta/zwarto-trąca, nienosowa w nagłosie następnego segmentu transkrypcji S
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    con3 = reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.stop
+                        ||
+                        reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.affricate;
+
+                    con4 = reading.PhoneStringS[0].Context.Right[0].Nasality != Nasality.nasal;
+                }
+
+                //warunek 5: samogłoska nosowa w transkrypcji S
+                con5 = reading.PhoneStringS[0].MannerOfArticulation == MannerOfArticulation.vowel
+                        &&
+                        reading.PhoneStringS[0].Nasality == Nasality.nasal;
+
+                //warunek 6: w bieżącym odczycie nie ma pauzy lub junktury
+                con6 = !reading.PhoneStringS.Contains(new Juncture())
+                    &&
+                    !reading.PhoneStringS.Contains(new Pause());
+            }
+
+
+            //wszystkie warunki muszą być spełnione 
+            return con1 && con2 && con3 && con4 && con5 && con6;
+
+        }
+        
+
+
+        public static bool V_ł(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false, con4 = false, con5 = false, con6 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Informator || reading.SpeakerType == SpeakerType.Parlator;
+
+            //warunek 2: pojedyncza samogłoska w wygłosie
+            con2 = ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionA)
+                &&
+                ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionS);
+
+            //warunek 3, 4, 5, 6: spółgłoska boczna w nagłosie następnego wyrazu
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    con3 = reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.semivowel;
+
+                    con4 = reading.PhoneStringS[0].Context.Right[0].Roundness == Roundness.rounded;
+
+                    con5 = reading.PhoneStringS[0].Context.Right[0].Phonation == Phonation.voiced;
+
+                    if (reading.PhoneStringS[0].Context.Right[0].GetType() == typeof(Consonant))
+                        con6 = ((Consonant)reading.PhoneStringS[0].Context.Right[0]).PlaceOfArticulation == PlaceOfArticulation.velar;
+                }
+
+
+            }
+
+            //warunek 7: samogłoska nie znajduje się w asymilujących kontekstach lewostronnych
+            //con7 = !rz_V(reading, readings) && !cz_V(reading, readings);
+
+            return con1 && con2 && con3 && con4 && con5 && con6;
+        }
+        
+
+
+        public static bool V_l(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Informator || reading.SpeakerType == SpeakerType.Parlator;
+
+            //warunek 2: pojedyncza samogłoska w wygłosie
+            con2 = ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionA)
+                &&
+                ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionS);
+
+            //warunek 3: spółgłoska boczna w nagłosie następnego wyrazu
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    con3 = reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.lateral;
+                }
+
+
+            }
+
+            //warunek 4: samogłoska nie znajduje się w asymilujących kontekstach lewostronnych
+            //con4 = !rz_V(reading, readings) && !cz_V(reading, readings);
+
+            return con1 && con2 && con3;
+        }
+        
+
+
+        public static bool V_rz(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Informator || reading.SpeakerType == SpeakerType.Parlator;
+
+            //warunek 2: pojedyncza samogłoska w wygłosie
+            con2 = ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionA)
+                &&
+                ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionS);
+
+            //warunek 3: spółgłoska drżąca w nagłosie następnego wyrazu
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    con3 = reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.fricativeTrill;
+                }
+
+
+            }
+
+            //warunek 4: samogłoska nie znajduje się w asymilujących kontekstach lewostronnych
+            //con4 = !rz_V(reading, readings) && !cz_V(reading, readings);
+
+            return con1 && con2 && con3;
+        }
+        
+
+
+        public static bool V_r(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Informator || reading.SpeakerType == SpeakerType.Parlator;
+
+            //warunek 2: pojedyncza samogłoska w wygłosie
+            con2 = ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionA)
+                &&
+                ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionS);
+
+            //warunek 3: spółgłoska drżąca w nagłosie następnego wyrazu
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    con3 = reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.trill;
+                }
+
+
+            }
+
+            //warunek 4: samogłoska nie znajduje się w asymilujących kontekstach lewostronnych
+            //con4 = !rz_V(reading, readings) && !cz_V(reading, readings);
+
+            return con1 && con2 && con3;
+        }
+        
+
+
+        public static bool V_j(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false;
+
+            //warunek 1: informator
+            con1 = reading.SpeakerType == SpeakerType.Parlator || reading.SpeakerType == SpeakerType.Informator;
+
+            //warunek 2: tylko samogłoska w wygłosie
+            con2 = ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionS) &&
+                ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionA);
+
+            //warunek 3: półsamogłoska j w nagłosie następnego fonu
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                //reading.PhoneStringS[0].Context = new PhoneContext();
+                //reading.PhoneStringS[0].Context.Left = GetLeftContext(readings, reading, reading.PhoneStringA[0], Transcriptions.transcriptionA).ToList();
+                //reading.PhoneStringS[0].Context.Right = GetRightContext(readings, reading, reading.PhoneStringA[0], Transcriptions.transcriptionA).ToList();
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
+                {
+                    if (reading.PhoneStringS[0].Context.Right[0].GetType() == typeof(Consonant))
+                    {
+                        con3 = reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.semivowel
+                                &&
+                                reading.PhoneStringS[0].Context.Right[0].Phonation == Phonation.voiced
+                                &&
+                            ((Consonant)reading.PhoneStringS[0].Context.Right[0]).PlaceOfArticulation == PlaceOfArticulation.palatal;
+                    }
+                }
+
+
+            }
+
+            //warunek 4: samogłoska nie znajduje się w asymilujących kontekstach lewostronnych
+            //con4 = !rz_V(reading, readings) && !cz_V(reading, readings);
+
+            //wszystkie warunku muszą być spełnione
+            return con1 && con2 && con3;
+
+        }
+        
+
+
+        public static bool cz_V(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false;
+
+            //warunek 1: odczyt głoski wykonanej przez informatora
+            con1 = reading.SpeakerType == SpeakerType.Parlator || reading.SpeakerType == SpeakerType.Informator;
+
+            //warunek 2: odczyt zawiera wyłącznie samogłoskę
+            con2 = ContainsOnlyVowelBeginning(reading, Transcriptions.transcriptionS)
+                &&
+                ContainsOnlyVowel(reading, Transcriptions.transcriptionA);
+
+            //warunek 3: w prepozycji znajduje się spółgłoska postalweolarna trąca lub zwarto-trąca
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                //reading.PhoneStringS[0].Context = new PhoneContext();
+                //reading.PhoneStringS[0].Context.Left = GetLeftContext(readings, reading, reading.PhoneStringS[0], Transcriptions.transcriptionS).ToList();
+                //reading.PhoneStringS[0].Context.Right = GetRightContext(readings, reading, reading.PhoneStringS[0], Transcriptions.transcriptionS).ToList();
+
+                if (reading.PhoneStringS[0].Context.Left.Count > 0
+                    &&
+                    reading.PhoneStringS[0].Context.Left[0].GetType() == typeof(Consonant))
+                {
+                    con3 = ((Consonant)reading.PhoneStringS[0].Context.Left[0]).PlaceOfArticulation == PlaceOfArticulation.postalveolar
+                        &&
+                        (reading.PhoneStringS[0].Context.Left[0].MannerOfArticulation == MannerOfArticulation.fricative
+                        ||
+                        reading.PhoneStringS[0].Context.Left[0].MannerOfArticulation == MannerOfArticulation.affricate);
+
+                }
+            }
+
+            //warunek 4: spółgłoska nie znajduje się w prawostronnym kontekście asymilującym
+            //con4 = !V_j(reading, readings) &&
+            //    !V_l(reading, readings) &&
+            //    !V_ł(reading, readings) &&
+            //    !V_N(reading, readings) &&
+            //    !V_r(reading, readings) &&
+            //    !V_rz(reading, readings) &&
+            //    !ć_V_N(reading, readings);
+
+            //wszystkie warunki muszą być spełnione
+            return con1 && con2 && con3;
+
+        }
+        
+
+
+        public static bool rz_V(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false, con4 = false;
+
+            //warunek 1: samogłoska musi być wymówiona przez informatora
+            con1 = reading.SpeakerType == SpeakerType.Informator || reading.SpeakerType == SpeakerType.Parlator;
+
+            //warunek 2: w odczycie znajduje się tylko jedna samogłoska
+            con2 = ContainsOnlyVowelBeginning(reading, Transcriptions.transcriptionA);
+
+            //warunek 3: badana samogłoska jest genetycznie samogłoską (ma odpowiednik w transkrypcji S)
+            con3 = ContainsOnlyVowel(reading, Transcriptions.transcriptionS);
+
+            //warunek 4: w następnym segmencie znajduje się dawna spółgłoska r'
+            if (reading.PhoneStringS.Count > 0)
+            {
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                //reading.PhoneStringS[0].Context = new PhoneContext();
+                //reading.PhoneStringS[0].Context.Left = GetLeftContext(readings, reading, reading.PhoneStringS[0], Transcriptions.transcriptionS).ToList();
+                //reading.PhoneStringS[0].Context.Right = GetRightContext(readings, reading, reading.PhoneStringS[0], Transcriptions.transcriptionS).ToList();
+
+                if (reading.PhoneStringS[0].Context.Left.Count > 0)
+                    con4 = reading.PhoneStringS[0].Context.Left[0].MannerOfArticulation == MannerOfArticulation.fricativeTrill;
+            }
+
+            //warunek 5: spółgłoska nie znajduje się w prawostronnym kontekście asymilującym
+            //con5 = !V_j(reading, readings) &&
+            //    !V_l(reading, readings) &&
+            //    !V_ł(reading, readings) &&
+            //    !V_N(reading, readings) &&
+            //    !V_r(reading, readings) &&
+            //    !V_rz(reading, readings) &&
+            //    !ć_V_N(reading, readings);
+
+            //wszystkie warunki muszą być spełnione
+            return con1 && con2 && con3 && con4;
+        }
+        
+
+
+        public static bool ć_V_N(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1 = false, con2 = false, con3 = false;
+
+            //warunek 1: po samogłosce musi się znajdować spółgłoska nosowa, a w odczycie musi się znajdować pojedyncza samogłoska
+            con1 = V_N(reading, readings);
+
+            //warunek 2: przed samogłoską musi się znajdować spółgłoska miękka
+            if (reading.PhoneStringS.Count > 0)
+            {
+
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Left.Count > 0)
+                {
+                    if (reading.PhoneStringS[0].Context.Left[0].GetType() == typeof(Consonant))
+                    {
+                        con2 = ((Consonant)reading.PhoneStringS[0].Context.Left[0]).PlaceOfArticulation == PlaceOfArticulation.palatal;
+                    }
+                }
+
+
+            }
+
+            //warunek 3: w ciągu fonicznym znajduje się tylko 1 fon wokaliczny
+            con3 = ContainsOnlyOneVowel(reading, Transcriptions.transcriptionA);
+
+
+            //wszystkie warunki muszą być spełnione
+            return con1 && con2 && con3;
+        }
+        
+
+
+        public static bool V_N(Reading reading, List<Reading> readings)
+        {
+            //warunki
+            bool con1, con2 = false, con3 = false, con4 = false;
+
+            //warunek 1: odczyt musi pochodzić od badanego
+            con1 = reading.SpeakerType == SpeakerType.Parlator || reading.SpeakerType == SpeakerType.Informator;
+
+            //warunek 2: odczyt musi zawierać tylko 1 samogłoskę stwierdzoną w badaniu akustycznym
+            con2 = ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionA);
+
+            //warunek 3: odczyt musi zawierać tylko 1 samogłoskę w transkrypcji S (genetycznie w tym miejscu powinna być tylko 1 samogłoska)
+            con3 = ContainsOnlyVowelEnd(reading, Transcriptions.transcriptionS);
+
+            //warunek 4: kolejny fon jest zwarty i jest nosowy       
             
-                       
-        }
 
-
-
-
-
-
-
-        public static void AddContexts5(List<Reading> readings, List<Phone> auxPhones)
-        {
-            var list = new List<Phone>();
-
-            foreach (var r in readings)
+            if (reading.PhoneStringS.Count > 0)
             {
-                foreach (var p in r.PhoneStringA)
+                GetBothContexts(ref readings, ref reading, Transcriptions.transcriptionS);
+
+                if (reading.PhoneStringS[0].Context.Right.Count > 0)
                 {
-                    p.Context = new PhoneContext();
-
-                    var temp = list; temp.Reverse();
-
-                    p.Context.Left.AddRange(temp);
-
-                    auxPhones.RemoveAt(0);
-
-                    p.Context.Right.AddRange(auxPhones);
-
-                    list.Add(p);
-
+                    con4 =
+                        reading.PhoneStringS[0].Context.Right[0].MannerOfArticulation == MannerOfArticulation.stop
+                        &&
+                        reading.PhoneStringS[0].Context.Right[0].Nasality == Nasality.nasal;
                 }
+
+
             }
+
+
+            //wszystkie warunki muszą być spełnione
+            return con1 && con2 && con3 && con4;
         }
 
+        #endregion
 
 
+        #region Content checkers
 
-
-
-
-        public static void AddContexts4(List<Reading> readings, List<Phone> auxPhones)
+        /// <summary>
+        /// Czy ciąg foniczny zawiera półsamogłoskę i ewentualnie pauzę i/lub junkturę. 
+        /// </summary>
+        /// <param name="reading"></param>
+        /// <param name="transcription"></param>
+        /// <returns></returns>
+        public static bool ContainsOnlySemivowel(Reading reading, Transcriptions transcription)
         {
 
-            foreach (var r in readings)
+            bool con1 = false, con2 = false, con3 = false, con4 = false;
+
+            switch (transcription)
             {
-                foreach (var p in r.PhoneStringA)
-                {
-                    int currentElementIndex = r.PhoneStringA.IndexOf(p);
-                    int currentGroupIndex = readings.IndexOf(r);
-                    var alreadyBrowsed = readings.GetRange(0, currentGroupIndex);
-                    int sumOfAlreadyBrowsedElements = alreadyBrowsed.Sum(x => x.PhoneStringA.Count());
-                    int number = sumOfAlreadyBrowsedElements + currentElementIndex;
+                case Transcriptions.transcriptionA:
 
-                    p.PhoneNo = number;
+                    //w ciągu fonicznym nie ma samogłosek
+                    con1 = reading.PhoneStringA.Count(x => x.GetType() == typeof(Vowel)) == 0;
 
-                    p.Context = new PhoneContext();
+                    //w ciągu fonicznym jest 1 samogłoska
+                    con2 = reading.PhoneStringA.Count(x => x.GetType() == typeof(Consonant)) == 1;
 
-                    for (int i = 0, j = number - 3; i < 3 && j >= 0; i++, j++)
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringA.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+
+                    //jedyna rozpoznana spółgłoska jest półsamogłoską
+                    foreach (var p in reading.PhoneStringA)
                     {
-                        p.Context.Left[i] = auxPhones[j];
+                        if (p.GetType() == typeof(Consonant) && p.MannerOfArticulation == MannerOfArticulation.semivowel)
+                        {
+                            con4 = true;
+                        }
                     }
 
 
-                    for (int i = 0, j = number + 1; i < 0 && j < auxPhones.Count; i++, j++)
+                    break;
+                case Transcriptions.transcriptionS:
+
+                    //w ciągu fonicznym nie ma samogłosek
+                    con1 = reading.PhoneStringS.Count(x => x.GetType() == typeof(Vowel)) == 0;
+
+                    //w ciągu fonicznym jest 1 samogłoska
+                    con2 = reading.PhoneStringS.Count(x => x.GetType() == typeof(Consonant)) == 1;
+
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringS.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+
+                    //jedyna rozpoznana spółgłoska jest półsamogłoską
+                    foreach (var p in reading.PhoneStringS)
                     {
-                        p.Context.Right[i] = auxPhones[j];
+                        if (p.GetType() == typeof(Consonant) && p.MannerOfArticulation == MannerOfArticulation.semivowel)
+                        {
+                            con4 = true;
+                        }
                     }
 
+                    break;
+                case Transcriptions.transcriptionG:
 
+                    //w ciągu fonicznym nie ma samogłosek
+                    con1 = reading.PhoneStringG.Count(x => x.GetType() == typeof(Vowel)) == 0;
 
-                }
+                    //w ciągu fonicznym jest 1 samogłoska
+                    con2 = reading.PhoneStringG.Count(x => x.GetType() == typeof(Consonant)) == 1;
+
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringG.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+
+                    //jedyna rozpoznana spółgłoska jest półsamogłoską
+                    foreach (var p in reading.PhoneStringG)
+                    {
+                        if (p.GetType() == typeof(Consonant) && p.MannerOfArticulation == MannerOfArticulation.semivowel)
+                        {
+                            con4 = true;
+                        }
+                    }
+
+                    break;
+                case Transcriptions.transcriptionO:
+
+                    //w ciągu fonicznym nie ma samogłosek
+                    con1 = reading.PhoneStringO.Count(x => x.GetType() == typeof(Vowel)) == 0;
+
+                    //w ciągu fonicznym jest 1 samogłoska
+                    con2 = reading.PhoneStringO.Count(x => x.GetType() == typeof(Consonant)) == 1;
+
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringO.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+
+                    //jedyna rozpoznana spółgłoska jest półsamogłoską
+                    foreach (var p in reading.PhoneStringO)
+                    {
+                        if (p.GetType() == typeof(Consonant) && p.MannerOfArticulation == MannerOfArticulation.semivowel)
+                        {
+                            con4 = true;
+                        }
+                    }
+
+                    break;
+                default:
+                    break;
             }
+
+
+
+
+            //wszystkie 3 warunki muszą być jednocześnie spełnione
+            return con1 && con2 && con3 && con4;
 
 
         }
 
 
 
-
-
-
-
-
-
-
-        public static void AddContexts3(List<Reading> readings, List<Phone> auxPhoneString)
+        /// <summary>
+        /// Czy ciąg foniczny zawiera samogłoskę w wygłosie (w nagłosie może się znajdować pauza i/lub junktura).
+        /// </summary>
+        /// <param name="reading"></param>
+        /// <param name="transcription"></param>
+        /// <returns></returns>
+        public static bool ContainsOnlyVowelEnd(Reading reading, Transcriptions transcription)
         {
-            int index = -1;
+            bool con1 = false, con2 = false, con3 = false;
+            int n = -1;
+
+            switch (transcription)
+            {
+                case Transcriptions.transcriptionA:
+                    //w ciągu fonicznym jest tylko jedna samogłoska
+                    n = reading.PhoneStringA.Count == 0 ? 0 : reading.PhoneStringA.Count - 1;
+
+                    if (reading.PhoneStringA.Count > 0)
+                        con1 = reading.PhoneStringA[n].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    //w ciągu fonicznym nie ma spółgłosek (wszystkie niesamogłoski są pauzami lub junkturami)
+                    int notC = reading.PhoneStringA.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    int pauseOrJuncture = reading.PhoneStringA.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringA.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionS:
+
+                    n = reading.PhoneStringS.Count == 0 ? 0 : reading.PhoneStringS.Count - 1;
+
+                    if (reading.PhoneStringS.Count > 0)
+                        con1 = reading.PhoneStringS[n].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    notC = reading.PhoneStringS.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringS.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringS.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionG:
+
+                    n = reading.PhoneStringG.Count == 0 ? 0 : reading.PhoneStringG.Count - 1;
+
+                    if (reading.PhoneStringG.Count > 0)
+                        con1 = reading.PhoneStringG[n].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    con1 = reading.PhoneStringG.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+
+                    notC = reading.PhoneStringG.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringG.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringG.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionO:
+
+                    n = reading.PhoneStringO.Count == 0 ? 0 : reading.PhoneStringO.Count - 1;
+
+                    if (reading.PhoneStringO.Count > 0)
+                        con1 = reading.PhoneStringO[n].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    con1 = reading.PhoneStringO.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+
+                    notC = reading.PhoneStringO.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringO.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringO.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                default:
+                    break;
+            }
+
+
+
+
+            //wszystkie 3 warunki muszą być jednocześnie spełnione
+            return con1 && con2 && con3;
+        }
+
+
+
+        /// <summary>
+        /// Czy ciąg foniczny zawiera samogłoskę w nagłosie (innymi fonami mogą być jedynie pauzy lub junktury).
+        /// </summary>
+        /// <param name="reading"></param>
+        /// <param name="transcription"></param>
+        /// <returns></returns>
+        public static bool ContainsOnlyVowelBeginning(Reading reading, Transcriptions transcription)
+        {
+            bool con1 = false, con2 = false, con3 = false;
+
+            switch (transcription)
+            {
+                case Transcriptions.transcriptionA:
+                    //w ciągu fonicznym jest tylko jedna samogłoska
+                    if (reading.PhoneStringA.Count > 0)
+                        con1 = reading.PhoneStringA[0].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    //w ciągu fonicznym nie ma spółgłosek (wszystkie niesamogłoski są pauzami lub junkturami)
+                    int notC = reading.PhoneStringA.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    int pauseOrJuncture = reading.PhoneStringA.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringA.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionS:
+
+                    if (reading.PhoneStringS.Count > 0)
+                        con1 = reading.PhoneStringS[0].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    notC = reading.PhoneStringS.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringS.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringS.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionG:
+
+                    if (reading.PhoneStringG.Count > 0)
+                        con1 = reading.PhoneStringG[0].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    notC = reading.PhoneStringG.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringG.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringG.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionO:
+
+                    if (reading.PhoneStringO.Count > 0)
+                        con1 = reading.PhoneStringO[0].MannerOfArticulation == MannerOfArticulation.vowel;
+
+                    notC = reading.PhoneStringO.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringO.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringO.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                default:
+                    break;
+            }
+
+
+
+
+            //wszystkie 3 warunki muszą być jednocześnie spełnione
+            return con1 && con2 && con3;
+        }
+
+
+
+        /// <summary>
+        /// Czy ciąg foniczny zawiera tylko jeden fon wokaliczny.
+        /// </summary>
+        /// <param name="reading"></param>
+        /// <param name="transcription"></param>
+        /// <returns></returns>
+        public static bool ContainsOnlyOneVowel(Reading reading, Transcriptions transcription)
+        {
+            bool con1 = false, con2 = false, con3 = false;
+
+            switch (transcription)
+            {
+                case Transcriptions.transcriptionA:
+                    //w ciągu fonicznym jest tylko jedna samogłoska
+                    con1 = reading.PhoneStringA.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+                    //w ciągu fonicznym nie ma innych fonów
+                    con2 = reading.PhoneStringA.Count == 1;
+
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringA.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionS:
+
+                    con1 = reading.PhoneStringS.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+                    con2 = reading.PhoneStringS.Count == 1;
+
+                    con3 = reading.PhoneStringS.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionG:
+                    con1 = reading.PhoneStringG.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+                    con2 = reading.PhoneStringG.Count == 1;
+
+                    con3 = reading.PhoneStringG.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionO:
+                    con1 = reading.PhoneStringO.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+                    con2 = reading.PhoneStringO.Count == 1;
+
+                    con3 = reading.PhoneStringO.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                default:
+                    break;
+            }
+
+
+
+
+            //wszystkie 3 warunki muszą być jednocześnie spełnione
+            return con1 && con2 && con3;
+        }
+
+
+
+        /// <summary>
+        /// Czy ciąg foniczny zawiera samogłoskę i ewentualnie pauzę i/lub junkturę. 
+        /// </summary>
+        /// <param name="reading"></param>
+        /// <param name="transcription"></param>
+        /// <returns></returns>
+        public static bool ContainsOnlyVowel(Reading reading, Transcriptions transcription)
+        {
+            bool con1 = false, con2 = false, con3 = false;
+
+            switch (transcription)
+            {
+                case Transcriptions.transcriptionA:
+                    //w ciągu fonicznym jest tylko jedna samogłoska
+                    con1 = reading.PhoneStringA.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+                    //w ciągu fonicznym nie ma spółgłosek (wszystkie niesamogłoski są pauzami lub junkturami)
+                    int notC = reading.PhoneStringA.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    int pauseOrJuncture = reading.PhoneStringA.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+                    //w ciągu fonicznym nie ma nierozpoznanych głosek
+                    con3 = reading.PhoneStringA.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionS:
+
+                    con1 = reading.PhoneStringS.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+
+                    notC = reading.PhoneStringS.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringS.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringS.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionG:
+                    con1 = reading.PhoneStringG.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+
+                    notC = reading.PhoneStringG.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringG.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringG.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                case Transcriptions.transcriptionO:
+                    con1 = reading.PhoneStringO.Count(x => x.MannerOfArticulation == MannerOfArticulation.vowel) == 1;
+
+
+                    notC = reading.PhoneStringO.Count(x => x.MannerOfArticulation != MannerOfArticulation.vowel);
+                    pauseOrJuncture = reading.PhoneStringO.Count(x => x.GetType() == typeof(Pause) || x.GetType() == typeof(Juncture));
+                    con2 = notC == pauseOrJuncture;
+
+
+                    con3 = reading.PhoneStringO.Count(x => x.GetType() == typeof(UnknownPhone)) == 0;
+                    break;
+                default:
+                    break;
+            }
+
+
+
+
+            //wszystkie 3 warunki muszą być jednocześnie spełnione
+            return con1 && con2 && con3;
+        }
+
+        #endregion
+
+
+        public static void TagContinuants(ref List<Reading> readings)
+        {
+            var vowels = new Dictionary<Phone, OldPolishVowels>();
+
+            vowels.Add(PhonePrototypes.i, OldPolishVowels.i);
+            vowels.Add(PhonePrototypes.ɨ1, OldPolishVowels.y);
+            vowels.Add(PhonePrototypes.E1, OldPolishVowels.e);
+            vowels.Add(PhonePrototypes.E1 + PhonePrototypes.@long, OldPolishVowels.e_long);
+            vowels.Add(PhonePrototypes.E1 + PhonePrototypes.nasal, OldPolishVowels.ę);
+            vowels.Add(PhonePrototypes.a_central, OldPolishVowels.a);
+            vowels.Add(PhonePrototypes.a_central + PhonePrototypes.@long, OldPolishVowels.a_long);
+            vowels.Add(PhonePrototypes.O1, OldPolishVowels.o);
+            vowels.Add(PhonePrototypes.O1 + PhonePrototypes.@long, OldPolishVowels.o_long);
+            vowels.Add(PhonePrototypes.O1 + PhonePrototypes.nasal, OldPolishVowels.ą);
+            vowels.Add(PhonePrototypes.u, OldPolishVowels.u);
+
 
             foreach (var r in readings)
             {
-                foreach (var p in r.PhoneStringA)
+                foreach (var v in vowels)
                 {
-                    index += 1;
-
-                    //Console.WriteLine(p.Symbol.IPA);
-                    //Console.Write(auxPhoneString[index].Symbol.IPA);
-
-                    p.Context = new PhoneContext();
-
-                    //Console.Write("\t\t");
-
-                    if (index - 3 >= 0)
+                    if (r.F1_Hz > 0)
                     {
-                        p.Context.Left[0] = auxPhoneString[index - 1];
-                        p.Context.Left[1] = auxPhoneString[index - 2];
-                        p.Context.Left[2] = auxPhoneString[index - 3];
+                        if (ContainsOnlyVowel(r, Transcriptions.transcriptionS)
+                            &&
+                            r.Contains(v.Key, Transcriptions.transcriptionS)
+                            &&
+                            ContainsOnlyVowel(r, Transcriptions.transcriptionA))
+                        {
+                            r.OldPolishVowel = (OldPolishVowels)v.Value;
+                        }
 
-                        //Console.Write("{0} {1} {2}",
-                        //    auxPhoneString[index - 1].Symbol.IPA,
-                        //    auxPhoneString[index - 2].Symbol.IPA,
-                        //    auxPhoneString[index - 3].Symbol.IPA);
+
                     }
-
-                    //Console.Write("\t||\t");
-
-                    if (index + 3 < auxPhoneString.Count)
-                    {
-                        p.Context.Right[0] = auxPhoneString[index + 1];
-                        p.Context.Right[1] = auxPhoneString[index + 2];
-                        p.Context.Right[2] = auxPhoneString[index + 3];
-
-                        //Console.Write("{0} {1} {2}",
-                        //    auxPhoneString[index + 1].Symbol.IPA,
-                        // auxPhoneString[index + 2].Symbol.IPA,
-                        //  auxPhoneString[index + 3].Symbol.IPA);
-                    }
-
-
 
                 }
+
             }
 
-
-
         }
+        
 
 
-
-
-
-        public static void AddContexts2(List<Reading> readings, List<Phone> auxPhoneString)
+        public static void CountMinMaxFrequencies2(List<Reading> readings)
         {
-            int index = -1;
+            //tworzę kolekcję numerów nagrań
+            var recNoCOl = readings.Select(x => x.RecordingNo).Distinct();
 
-            foreach (var r in readings)
+            //przeglądam tę kolekcję
+            foreach (var i in recNoCOl)
             {
-                foreach (var p in r.PhoneStringA)
+                foreach (var j in readings.FindAll(x => x.RecordingNo.Equals(i)))
                 {
-                    index += 1;
+                    j.f_1_min = readings.Where(x => x.RecordingNo.Equals(i) && x.F1_Hz >= typicalFrequencies[0].F1).Min(x => x.F1_Hz);
+                    j.f_2_min = readings.Where(x => x.RecordingNo.Equals(i) && x.F2_Hz >= typicalFrequencies[0].F2).Min(x => x.F2_Hz);
+                    j.f_3_min = readings.Where(x => x.RecordingNo.Equals(i) && x.F3_Hz >= typicalFrequencies[0].F3).Min(x => x.F3_Hz);
+                    j.f_4_min = readings.Where(x => x.RecordingNo.Equals(i) && x.F4_Hz >= typicalFrequencies[0].F4).Min(x => x.F4_Hz);
 
-                    p.Context = new PhoneContext();
+                    j.f_1_max = readings.Where(x => x.RecordingNo.Equals(i) && x.F1_Hz <= typicalFrequencies[1].F1).Max(x => x.F1_Hz);
+                    j.f_2_max = readings.Where(x => x.RecordingNo.Equals(i) && x.F2_Hz <= typicalFrequencies[1].F2).Max(x => x.F2_Hz);
+                    j.f_3_max = readings.Where(x => x.RecordingNo.Equals(i) && x.F3_Hz <= typicalFrequencies[1].F3).Max(x => x.F3_Hz);
+                    j.f_4_max = readings.Where(x => x.RecordingNo.Equals(i) && x.F4_Hz <= typicalFrequencies[1].F4).Max(x => x.F4_Hz);
 
-                    for (int i = 0; i < 3 && i + index + 1 < auxPhoneString.Count; i++)
+                }
+
+                var subset = readings.FindAll(x => x.RecordingNo.Equals(i));
+
+                double min = subset.Where(x => x.F1_Hz > 0 && x.RecordingNo.Equals(i)).Min(x => x.F1_Hz);
+
+
+
+            }
+
+
+
+        }
+
+
+
+        public static void CountMinMaxFrequencies(List<Reading> readings)
+        {
+            var recordingNos = readings.Select(x => x.RecordingNo).Distinct();
+
+            foreach (var recNo in recordingNos)
+            {
+                double minF1 = readings.Average(x => x.F1_Hz), maxF1 = readings.Average(x => x.F1_Hz);
+                double minF2 = readings.Average(x => x.F2_Hz), maxF2 = readings.Average(x => x.F2_Hz);
+                double minF3 = readings.Average(x => x.F3_Hz), maxF3 = readings.Average(x => x.F3_Hz);
+                double minF4 = readings.Average(x => x.F4_Hz), maxF4 = readings.Average(x => x.F4_Hz);
+
+                for (int i = readings.FindIndex(x => x.RecordingNo == recNo); i <= readings.FindLastIndex(x => x.RecordingNo == recNo); i++)
+                {
+                    //min values
+                    if (readings[i].F1_Hz > 0 && IsWithinStandards(readings[i].F1_Hz, 1) && readings[i].F1_Hz < minF1) minF1 = readings[i].F1_Hz;
+                    if (readings[i].F2_Hz > 0 && IsWithinStandards(readings[i].F2_Hz, 2) && readings[i].F2_Hz < minF2) minF2 = readings[i].F2_Hz;
+                    if (readings[i].F3_Hz > 0 && IsWithinStandards(readings[i].F3_Hz, 3) && readings[i].F3_Hz < minF3) minF3 = readings[i].F3_Hz;
+                    if (readings[i].F4_Hz > 0 && IsWithinStandards(readings[i].F4_Hz, 4) && readings[i].F4_Hz < minF4) minF4 = readings[i].F4_Hz;
+
+                    //max values
+                    if (readings[i].F1_Hz > 0 && IsWithinStandards(readings[i].F1_Hz, 1) && readings[i].F1_Hz > maxF1) maxF1 = readings[i].F1_Hz;
+                    if (readings[i].F2_Hz > 0 && IsWithinStandards(readings[i].F2_Hz, 2) && readings[i].F2_Hz > maxF2) maxF2 = readings[i].F2_Hz;
+                    if (readings[i].F3_Hz > 0 && IsWithinStandards(readings[i].F3_Hz, 3) && readings[i].F3_Hz > maxF3) maxF3 = readings[i].F3_Hz;
+                    if (readings[i].F4_Hz > 0 && IsWithinStandards(readings[i].F4_Hz, 4) && readings[i].F4_Hz > maxF4) maxF4 = readings[i].F4_Hz;
+
+
+                }
+
+                for (int i = readings.FindIndex(x => x.RecordingNo == recNo); i <= readings.FindLastIndex(x => x.RecordingNo == recNo); i++)
+                {
+                    readings[i].f_1_max = maxF1;
+                    readings[i].f_2_max = maxF2;
+                    readings[i].f_3_max = maxF3;
+                    readings[i].f_4_max = maxF4;
+
+                    readings[i].f_1_min = minF1;
+                    readings[i].f_2_min = minF2;
+                    readings[i].f_3_min = minF3;
+                    readings[i].f_4_min = minF4;
+                    
+                }
+
+                
+
+            }
+
+
+        }
+
+
+        private static bool IsWithinStandards(double frequency, int formantNo)
+        {
+            switch (formantNo)
+            {
+                case 1: return frequency >= typicalFrequencies[0].F1 && frequency <= typicalFrequencies[1].F1;
+                case 2: return frequency >= typicalFrequencies[0].F2 && frequency <= typicalFrequencies[1].F2;
+                case 3: return frequency >= typicalFrequencies[0].F3 && frequency <= typicalFrequencies[1].F3;
+                case 4: return frequency >= typicalFrequencies[0].F4 && frequency <= typicalFrequencies[1].F4;
+                default: return false;
+            }
+        }
+
+
+
+        public static void CountRelativeFrequencies(List<Reading> readings)
+        {
+            foreach (var r in readings)
+            {
+
+                //warunek 1: dostępny jest tag realizacji
+                //var c1 = r.OldPolishVowel != null;
+                               
+
+                //warunek 2: dostępne są częstotliwości bezwzględne
+                var c2 = r.F1_Hz > 0;
+
+                //warunek 3: dostępne są częstotliwości maksymalne i minimalne
+                var c3 = r.f_1_min > 0 && r.f_1_max > 0;
+
+                //warunek 4: odczyt zawiera głoskę wymówioną przez parlatora/informatora
+                var c4 = r.SpeakerType == SpeakerType.Informator || r.SpeakerType == SpeakerType.Parlator;
+
+                //warunek 5: odczyt zawiera samogłoskę (sposób artykulacji: samogłoska, fonacja: dźwięczna) lub półsamogłoskę (sposób artykulacji: półsamogłoska, fonacja: dźwięczna)
+                var c5 = ContainsOnlyVowel(r, Transcriptions.transcriptionA) 
+                    || 
+                    ContainsOnlySemivowel(r, Transcriptions.transcriptionA);
+
+                if (c2 && c3 && c4 && c5)
+                {
+                    r.rel_F1 = CheckF(r.F1_Hz, 1) ? (r.F1_Hz - r.f_1_min) / (r.f_1_max - r.f_1_min) : Double.NaN;
+                    r.rel_F2 = CheckF(r.F2_Hz, 2) ? (r.F2_Hz - r.f_2_min) / (r.f_2_max - r.f_2_min) : Double.NaN; ;
+                    r.rel_F3 = CheckF(r.F3_Hz, 3) ? (r.F3_Hz - r.f_3_min) / (r.f_3_max - r.f_3_min) : Double.NaN; ;
+                    r.rel_F4 = CheckF(r.F4_Hz, 4) ? (r.F4_Hz - r.f_4_min) / (r.f_4_max - r.f_4_min) : Double.NaN; ;
+                }
+
+            }
+        }
+
+
+        
+        public static bool CheckF(double F,  int no)
+        {
+            switch (no)
+            {
+                case 1: return F >= typicalFrequencies[0].F1 && F <= typicalFrequencies[1].F1; 
+                case 2: return F >= typicalFrequencies[0].F2 && F <= typicalFrequencies[1].F2;
+                case 3: return F >= typicalFrequencies[0].F3 && F <= typicalFrequencies[1].F3;
+                case 4: return F >= typicalFrequencies[0].F4 && F <= typicalFrequencies[1].F4;
+                default: return false; 
+            }
+        }
+
+
+
+
+        public static void GetBothContexts(ref List<Reading> readings, ref Reading reading, Transcriptions transcription)
+        {
+
+            switch (transcription)
+            {
+                case Transcriptions.transcriptionA:
+
+                    foreach (var i in reading.PhoneStringA)
                     {
-                        //p.Context.Right[i] = auxPhoneString[index + i + 1];
-
-                        p.Context.Right[0] = auxPhoneString[index + 1];
+                        i.Context = new PhoneContext();
+                        i.Context.Left = GetLeftContext(readings, reading, i, Transcriptions.transcriptionA).ToList();
+                        i.Context.Right = GetRightContext(readings, reading, i, Transcriptions.transcriptionA).ToList();
                     }
 
+                    break;
+                case Transcriptions.transcriptionS:
 
-                }
+                    foreach (var i in reading.PhoneStringS)
+                    {
+                        i.Context = new PhoneContext();
+                        i.Context.Left = GetLeftContext(readings, reading, i, Transcriptions.transcriptionS).ToList();
+                        i.Context.Right = GetRightContext(readings, reading, i, Transcriptions.transcriptionS).ToList();
+                    }
+
+                    break;
+                case Transcriptions.transcriptionG:
+
+                    foreach (var i in reading.PhoneStringG)
+                    {
+                        i.Context = new PhoneContext();
+                        i.Context.Left = GetLeftContext(readings, reading, i, Transcriptions.transcriptionG).ToList();
+                        i.Context.Right = GetRightContext(readings, reading, i, Transcriptions.transcriptionG).ToList();
+                    }
+
+                    break;
+                case Transcriptions.transcriptionO:
+
+                    foreach (var i in reading.PhoneStringO)
+                    {
+                        i.Context = new PhoneContext();
+                        i.Context.Left = GetLeftContext(readings, reading, i, Transcriptions.transcriptionO).ToList();
+                        i.Context.Right = GetRightContext(readings, reading, i, Transcriptions.transcriptionO).ToList();
+                    }
+
+                    break;
+                default:
+                    break;
             }
-
-
 
 
         }
@@ -353,453 +1401,232 @@ namespace APS_2.Phonetics
 
 
 
-        internal static void AddContexts(List<Reading> readings, List<Phone> auxPhoneStringA)
+        public static Phone[] GetRightContext(List<Reading> readings, Reading reading, Phone phone,
+            Transcriptions transcription)
         {
-            var right = new List<Phone[]>();
+            int readingNo = readings.IndexOf(reading);
 
-            for (int i = 0; i < auxPhoneStringA.Count - 3; i++)
+            int phoneNo = 0;
+
+            switch (transcription)
             {
-                right.Add(new Phone[3]);
-
-                right[i][0] = auxPhoneStringA[i + 1];
-                right[i][1] = auxPhoneStringA[i + 2];
-                right[i][2] = auxPhoneStringA[i + 3];
+                case Transcriptions.transcriptionA:
+                    phoneNo = readings[readingNo].PhoneStringA.IndexOf(phone);
+                    break;
+                case Transcriptions.transcriptionS:
+                    phoneNo = readings[readingNo].PhoneStringS.IndexOf(phone);
+                    break;
+                case Transcriptions.transcriptionG:
+                    phoneNo = readings[readingNo].PhoneStringG.IndexOf(phone);
+                    break;
+                case Transcriptions.transcriptionO:
+                    phoneNo = readings[readingNo].PhoneStringO.IndexOf(phone);
+                    break;
+                default:
+                    break;
             }
 
+            var temp = new List<Phone>();
 
+            int i = -1;
+            int j = -1;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            int index = -1;
-
-            foreach (var r in readings)
-            {
-                foreach (var p in r.PhoneStringA)
-                {
-                    index += 1;
-
-                    Debug.WriteLine("!!!INDEX: {0}", index, "");
-
-                    p.Context = new PhoneContext();
-
-                    //for (int i = 0;
-
-                    //    i < p.Context.Right.Length && i + index + 1 < auxPhoneStringA.Count;
-
-                    //    i++)
-                    //{
-
-                    //    p.Context.Right[i] = auxPhoneStringA[index + i + 1];
-
-
-                    //    //p.Context.Right[i].Symbol.IPA = index.ToString();
-
-
-                    //}
-
-
-                    //Console.Write("{0}\t{1}\t{2} {3} {4}",
-                    //    p.Symbol.IPA, auxPhoneStringA[index].Symbol.IPA,
-                    //    auxPhoneStringA[index + 1].Symbol.IPA,
-                    //    auxPhoneStringA[index + 2].Symbol.IPA,
-                    //    auxPhoneStringA[index + 3].Symbol.IPA);
-
-
-
-                    //Console.WriteLine("\t{0} {1} {2} \tGŁOSKA\t{3} {4} {5} ",
-                    //    p.Context.Left[2].Symbol.IPA, p.Context.Left[1].Symbol.IPA, p.Context.Left[0].Symbol.IPA,
-
-                    //    p.Context.Right[0].Symbol.IPA, p.Context.Right[1].Symbol.IPA, p.Context.Right[2].Symbol.IPA
-                    //    );
-
-                    //Console.WriteLine(); Console.WriteLine();
-                }
-            }
-
-
-
-
-            //int index = -1;
-
-            //foreach (var r in readings)
-            //{
-            //    foreach (var p in r.PhoneStringA)
-            //    {
-            //        index++;
-
-            //        p.Context = new PhoneContext();
-
-            //        for (int i = 0, j = index + 1; 
-
-            //            i < p.Context.Right.Length && j < auxPhoneStringA.Count; 
-
-            //            i++, j++)
-            //        {
-            //            p.Context.Right[i] = auxPhoneStringA[j];
-            //        }
-
-
-            //        //Console.Write("{0}\t{1}\t{2} {3} {4}",
-            //        //    p.Symbol.IPA, auxPhoneStringA[index].Symbol.IPA,
-            //        //    auxPhoneStringA[index + 1].Symbol.IPA,
-            //        //    auxPhoneStringA[index + 2].Symbol.IPA,
-            //        //    auxPhoneStringA[index + 3].Symbol.IPA);
-
-
-
-            //        //Console.WriteLine("\t{0} {1} {2} \tGŁOSKA\t{3} {4} {5} ",
-            //        //    p.Context.Left[2].Symbol.IPA, p.Context.Left[1].Symbol.IPA, p.Context.Left[0].Symbol.IPA,
-
-            //        //    p.Context.Right[0].Symbol.IPA, p.Context.Right[1].Symbol.IPA, p.Context.Right[2].Symbol.IPA
-            //        //    );
-
-            //        //Console.WriteLine(); Console.WriteLine();
-            //    }
-            //}
-
-
-
-
-
-            //int index = -1;
-
-            //for (int i = 0; i < readings.Count; i++)
-            //{
-            //    for (int j = 0; j < readings[i].PhoneStringA.Count; j++)
-            //    {
-            //        index++;
-
-            //        readings[i].PhoneStringA[j].Context = new PhoneContext();
-
-            //        for (int k = index + 1, l = 0; k < auxPhoneStringA.Count && l < 3; k++, l++)
-            //        {
-            //            readings[i].PhoneStringA[j].Context.Right[l] = auxPhoneStringA[k];
-            //        }
-
-            //        //if (index > 3 && index < auxPhoneStringA.Count - 3)
-            //        //{                        
-
-            //        //    readings[i].PhoneStringA[j].Context.Left[0] = auxPhoneStringA[index - 1];
-            //        //    readings[i].PhoneStringA[j].Context.Left[1] = auxPhoneStringA[index - 2]; 
-            //        //    readings[i].PhoneStringA[j].Context.Left[2] = auxPhoneStringA[index - 3]; 
-
-
-            //        //    readings[i].PhoneStringA[j].Context.Right[0] = auxPhoneStringA[index + 1]; 
-            //        //    readings[i].PhoneStringA[j].Context.Right[1] = auxPhoneStringA[index + 2]; 
-            //        //    readings[i].PhoneStringA[j].Context.Right[2] = auxPhoneStringA[index + 3]; 
-
-
-            //        //}
-            //    }
-            //}
-
-            index = 0;
-
-
-
-
-
-
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        public static List<Phone> GetAuxPhoneString2(List<Reading> readings, Transcriptions transcription)
-        {
-            int index = -1;
-
-            var res = new List<Phone>();
-
-            foreach (var r in readings)
+            for (i = readingNo; i < readings.Count; i++)
             {
 
                 switch (transcription)
                 {
                     case Transcriptions.transcriptionA:
-
-                        foreach (var p in r.PhoneStringA)
+                        for (j = j == -1 ? phoneNo : 0; j < readings[i].PhoneStringA.Count; j++)
                         {
-                            index++;
-
-                            p.PhoneNo = index;
-                            //p.Reading = r;
-
-                            res.Add(p);
+                            temp.Add(readings[i].PhoneStringA[j]);
                         }
-
                         break;
                     case Transcriptions.transcriptionS:
-
-                        foreach (var p in r.PhoneStringS)
+                        for (j = j == -1 ? phoneNo : 0; j < readings[i].PhoneStringS.Count; j++)
                         {
-                            index++;
-
-                            p.PhoneNo = index;
-                            //p.Reading = r;
-
-                            res.Add(p);
+                            temp.Add(readings[i].PhoneStringS[j]);
                         }
-
                         break;
                     case Transcriptions.transcriptionG:
-
-                        foreach (var p in r.PhoneStringG)
+                        for (j = j == -1 ? phoneNo : 0; j < readings[i].PhoneStringG.Count; j++)
                         {
-                            index++;
-
-                            p.PhoneNo = index;
-                            //p.Reading = r;
-
-                            res.Add(p);
+                            temp.Add(readings[i].PhoneStringG[j]);
                         }
-
                         break;
                     case Transcriptions.transcriptionO:
-
-                        foreach (var p in r.PhoneStringO)
+                        for (j = j == -1 ? phoneNo : 0; j < readings[i].PhoneStringO.Count; j++)
                         {
-                            index++;
-
-                            p.PhoneNo = index;
-                            //p.Reading = r;
-
-                            res.Add(p);
+                            temp.Add(readings[i].PhoneStringO[j]);
                         }
-
                         break;
                     default:
                         break;
                 }
+
+                //WADLIWY KOD (WARUNEK ZAKOŃCZENIA PĘTLI UZALEŻNIONY TYLKO OD TRANSKRYPCJI A
+                //for (j = j == -1 ? phoneNo : 0; j < readings[i].PhoneStringA.Count; j++)
+                //{
+
+                //    switch (transcription)
+                //    {
+                //        case Transcriptions.transcriptionA:
+                //            temp.Add(readings[i].PhoneStringA[j]);
+                //            break;
+                //        case Transcriptions.transcriptionS:
+                //            temp.Add(readings[i].PhoneStringS[j]);
+                //            break;
+                //        case Transcriptions.transcriptionG:
+                //            temp.Add(readings[i].PhoneStringG[j]);
+                //            break;
+                //        case Transcriptions.transcriptionO:
+                //            temp.Add(readings[i].PhoneStringO[j]);
+                //            break;
+                //        default:
+                //            break;
+                //    }
+
+                //}
+
+                if (temp.Count >= 4) break;
             }
 
-            return res;
+            temp.RemoveAt(0);
+
+            return temp.ToArray();
+
+
         }
 
 
 
 
 
-
-
-
-
-        public static List<Phone> GetAuxPhoneString(List<Reading> readings, Transcriptions transcription)
+        public static Phone[] GetLeftContext(List<Reading> readings, Reading reading, Phone phone,
+            Transcriptions transcription)
         {
-            int index = -1;
+            int readingNo = readings.IndexOf(reading);
 
-            var res = new List<Phone>();
+            int phoneNo = 0;
 
-            foreach (var r in readings)
+            switch (transcription)
             {
+                case Transcriptions.transcriptionA:
+                    phoneNo = readings[readingNo].PhoneStringA.IndexOf(phone);
+                    break;
+                case Transcriptions.transcriptionS:
+                    phoneNo = readings[readingNo].PhoneStringS.IndexOf(phone);
+                    break;
+                case Transcriptions.transcriptionG:
+                    phoneNo = readings[readingNo].PhoneStringG.IndexOf(phone);
+                    break;
+                case Transcriptions.transcriptionO:
+                    phoneNo = readings[readingNo].PhoneStringO.IndexOf(phone);
+                    break;
+                default:
+                    break;
+            }
 
+            var temp = new List<Phone>();
+
+            int i = -2;
+            int j = -2;
+
+            int maxPosition = 0;
+
+            for (i = readingNo; i >= 0; i--)
+            {
                 switch (transcription)
                 {
                     case Transcriptions.transcriptionA:
-
-                        foreach (var p in r.PhoneStringA)
-                        {
-                            index++;
-
-                            p.PhoneNo = index;
-                            p.Reading = r;
-
-                            res.Add(p);
-                        }
-
+                        maxPosition = readings[i].PhoneStringA.Count - 1;
                         break;
                     case Transcriptions.transcriptionS:
-
-                        foreach (var p in r.PhoneStringS)
-                        {
-                            index++;
-
-                            p.PhoneNo = index;
-                            p.Reading = r;
-
-                            res.Add(p);
-                        }
-
+                        maxPosition = readings[i].PhoneStringS.Count - 1;
                         break;
                     case Transcriptions.transcriptionG:
-
-                        foreach (var p in r.PhoneStringG)
-                        {
-                            index++;
-
-                            p.PhoneNo = index;
-                            p.Reading = r;
-
-                            res.Add(p);
-                        }
-
+                        maxPosition = readings[i].PhoneStringG.Count - 1;
                         break;
                     case Transcriptions.transcriptionO:
-
-                        foreach (var p in r.PhoneStringO)
-                        {
-                            index++;
-
-                            p.PhoneNo = index;
-                            p.Reading = r;
-
-                            res.Add(p);
-                        }
-
+                        maxPosition = readings[i].PhoneStringO.Count - 1;
                         break;
                     default:
                         break;
                 }
+
+
+
+                for (j = j == -2 ? phoneNo : maxPosition; j >= 0; j--)
+                {
+
+                    switch (transcription)
+                    {
+                        case Transcriptions.transcriptionA:
+                            temp.Add(readings[i].PhoneStringA[j]);
+                            break;
+                        case Transcriptions.transcriptionS:
+                            temp.Add(readings[i].PhoneStringS[j]);
+                            break;
+                        case Transcriptions.transcriptionG:
+                            temp.Add(readings[i].PhoneStringG[j]);
+                            break;
+                        case Transcriptions.transcriptionO:
+                            temp.Add(readings[i].PhoneStringO[j]);
+                            break;
+                        default:
+                            break;
+                    }
+
+                }
+
+                if (temp.Count >= 4) break;
             }
 
-            return res;
+            temp.RemoveAt(0);
+
+            return temp.ToArray();
+
+
         }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-        //private static void AddExamplesTA(List<Reading> readings, Reading reading, Phone phone)
-        //{
-        //    int readingNo = readings.IndexOf(reading);
-
-        //    int phoneNo = reading.PhoneStringA.IndexOf(phone);
-
-        //    int[,] endLimitA = new int[1,1];
-
-        //    List<Symbol> onward = new List<Symbol>();
-        //    List<Symbol> backward = new List<Symbol>();
-
-        //    bool breakCondition = false;
-
-        //    for (int i = readingNo; i < readings.Count; i++)
-        //    {
-        //        if (breakCondition) break;
-
-        //        for (int j = phoneNo; j < readings[i].PhoneStringA.Count; j++)
-        //        {
-        //            if (j == phoneNo) continue;
-
-        //            if (
-        //                readings[i].PhoneStringA[j].GetType() != typeof(Juncture)
-        //                &&
-        //                readings[i].PhoneStringA[j].GetType() != typeof(Pause)
-        //                )
-        //            {
-        //                onward.Add(readings[i].PhoneStringA[j].Symbol);
-        //            }
-        //            else
-        //            {
-        //                breakCondition = true;
-        //                break;
-        //            }
-
-        //        }
-        //    }
-
-
-
-        //    breakCondition = false;
-
-        //    for (int i = readingNo; i >= 0; i--)
-        //    {
-        //        for (int j = i == readingNo ? phoneNo : readings[i].PhoneStringA.Count - 1; j >= 0; j--)
-        //        {
-        //            if (j == phoneNo) continue;
-
-        //            if (
-        //                readings[i].PhoneStringA[j].GetType() != typeof(Juncture)
-        //                &&
-        //                readings[i].PhoneStringA[j].GetType() != typeof(Pause)
-        //                )
-        //            {
-        //                backward.Add(readings[i].PhoneStringA[j].Symbol);
-        //            }
-        //            else
-        //            {
-        //                breakCondition = true;
-        //                break;
-        //            }
-        //        }
-        //    }
-
-
-        //    backward.Reverse();
-
-        //    backward.AddRange(onward);
-
-        //    if (phone.Example == null)
-        //        phone.Example = new Example();
-
-        //    phone.Example.TranscriptionA = backward;
-
-        //}
-
-
-
-
-
-        public static string[] GetTranscription(List<Symbol> symbols)
+        public static void AddContexts7(ref List<Reading> readings)
         {
-            var ipa = new StringBuilder();
-            var spa = new StringBuilder();
-            var simplified = new StringBuilder();
-            var xsampa = new StringBuilder();
 
-            foreach (var i in symbols)
+            foreach (var r in readings)
             {
-                ipa.Append(i.IPA);
-                spa.Append(i.SPA);
-                simplified.Append(i.Simplified);
-                xsampa.Append(i.XSampa);
+                foreach (var p in r.PhoneStringA)
+                {
+                    p.Context = new PhoneContext();
+
+                    p.Context.Left.AddRange(GetLeftContext(readings, r, p, Transcriptions.transcriptionA));
+                }
+
+                foreach (var p in r.PhoneStringG)
+                {
+                    p.Context = new PhoneContext();
+
+                    p.Context.Left.AddRange(GetLeftContext(readings, r, p, Transcriptions.transcriptionG));
+                }
+
+                foreach (var p in r.PhoneStringS)
+                {
+                    p.Context = new PhoneContext();
+
+                    p.Context.Left.AddRange(GetLeftContext(readings, r, p, Transcriptions.transcriptionS));
+                }
+
+                foreach (var p in r.PhoneStringO)
+                {
+                    p.Context = new PhoneContext();
+
+                    p.Context.Left.AddRange(GetLeftContext(readings, r, p, Transcriptions.transcriptionO));
+                }
+
             }
 
-            var res = new string[4];
 
-            res[0] = ipa.ToString();
-            res[1] = spa.ToString();
-            res[2] = simplified.ToString();
-            res[3] = xsampa.ToString();
-
-            return res;
         }
 
 
@@ -815,60 +1642,61 @@ namespace APS_2.Phonetics
 
 
 
-        //private static void AddExamples(List<Phone> phones)
-        //{
-        //    for (int i = 0; i < phones.Count; i++)
-        //    {
-        //        phones[i].Example = new Example();
 
-        //        int begin = -1;
-        //        int end = -1;
+        private static void AddExamples(List<Phone> phones)
+        {
+            for (int i = 0; i < phones.Count; i++)
+            {
+                phones[i].Example = new Example();
 
-        //        if (phones[i].GetType() != typeof(Juncture)
-        //            &&
-        //            phones[i].GetType() != typeof(Pause))
-        //        {
-        //            //szukam początku przykładu
-        //            if (i > 0)
-        //            {
-        //                for (int j = i - 1; j >= 0; j--)
-        //                {
-        //                    if (phones[j].GetType() == typeof(Juncture) || phones[j].GetType() == typeof(Pause) || j == 0)
-        //                    {
-        //                        begin = j;
-        //                        break;
-        //                    }
-        //                }
-        //            }
+                int begin = -1;
+                int end = -1;
 
-        //            //szukam końca przykładu
-        //            if (i < phones.Count - 1)
-        //            {
-        //                for (int j = i + 1; j < phones.Count; j++)
-        //                {
-        //                    if (phones[j].GetType() == typeof(Juncture) || phones[j].GetType() == typeof(Pause) || j == phones.Count - 1)
-        //                    {
-        //                        end = j;
-        //                        break;
-        //                    }
-        //                }
-        //            }
+                if (phones[i].GetType() != typeof(Juncture)
+                    &&
+                    phones[i].GetType() != typeof(Pause))
+                {
+                    //szukam początku przykładu
+                    if (i > 0)
+                    {
+                        for (int j = i - 1; j >= 0; j--)
+                        {
+                            if (phones[j].GetType() == typeof(Juncture) || phones[j].GetType() == typeof(Pause) || j == 0)
+                            {
+                                begin = j;
+                                break;
+                            }
+                        }
+                    }
 
-        //            //dodaję fony                    
-        //            for (int j = begin; j <= end; j++)
-        //            {
-        //                //phones[i].Example.IPA += phones[i].Symbol.IPA;
-        //                //phones[i].Example.SPA += phones[i].Symbol.SPA;
-        //                //phones[i].Example.Simplified += phones[i].Symbol.Simplified;
-        //                //phones[i].Example.XSampa += phones[i].Symbol.XSampa;
-        //            }
+                    //szukam końca przykładu
+                    if (i < phones.Count - 1)
+                    {
+                        for (int j = i + 1; j < phones.Count; j++)
+                        {
+                            if (phones[j].GetType() == typeof(Juncture) || phones[j].GetType() == typeof(Pause) || j == phones.Count - 1)
+                            {
+                                end = j;
+                                break;
+                            }
+                        }
+                    }
 
-
-        //        }
+                    //dodaję fony                    
+                    for (int j = begin; j <= end; j++)
+                    {
+                        //phones[i].Example.IPA += phones[i].Symbol.IPA;
+                        //phones[i].Example.SPA += phones[i].Symbol.SPA;
+                        //phones[i].Example.Simplified += phones[i].Symbol.Simplified;
+                        //phones[i].Example.XSampa += phones[i].Symbol.XSampa;
+                    }
 
 
-        //    }
-        //}
+                }
+
+
+            }
+        }
 
 
 
@@ -890,6 +1718,33 @@ namespace APS_2.Phonetics
 
 
         }
+
+
+        private static void AddInfoOnReadings(Reading r)
+        {
+
+            foreach (var p in r.PhoneStringA)
+            {
+                p.Reading = r;
+            }
+
+            foreach (var p in r.PhoneStringS)
+            {
+                p.Reading = r;
+            }
+
+            foreach (var p in r.PhoneStringG)
+            {
+                p.Reading = r;
+            }
+
+            foreach (var p in r.PhoneStringO)
+            {
+                p.Reading = r;
+            }
+
+        }
+
 
         private static void AddSpeaker(List<Phone> phones, Speaker speaker, SpeakerType speakerType)
         {
@@ -1402,6 +2257,8 @@ namespace APS_2.Phonetics
 
 
         }
+
+
 
 
     }

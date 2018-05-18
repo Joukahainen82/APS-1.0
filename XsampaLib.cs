@@ -1,4 +1,5 @@
-﻿using APS_2.Phonetics;
+﻿using APS_1.Phonetics;
+using APS_1.Symbols.Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Symbols.Library
+namespace APS_1.Symbols.Library
 {
     public class XsampaLib : Library
     {
@@ -25,7 +26,7 @@ namespace APS_2.Symbols.Library
             #region: Consonants
 
             #region: Stops
-
+                        
             Symbols.Add(PhonePrototypes.p1.Symbol.XSampa, PhonePrototypes.p1);
 
             //Symbols.Add(PhonePrototypes.p2.Symbol.XSampa, PhonePrototypes.p2);
@@ -148,7 +149,7 @@ namespace APS_2.Symbols.Library
             Symbols.Add(PhonePrototypes.L2.Symbol.XSampa, PhonePrototypes.L2);
 
             Symbols.Add(PhonePrototypes.ɹ.Symbol.XSampa, PhonePrototypes.ɹ);
-
+            
             #endregion
 
             #region: Affricates
@@ -366,7 +367,7 @@ namespace APS_2.Symbols.Library
                 new Diacritic(PhonePrototypes.creak, -1));
 
 
-            Symbols.Add(PhonePrototypes.extraShort.Symbol.XSampa,
+            Symbols.Add(PhonePrototypes.extraShort.Symbol.XSampa, 
                 new Diacritic(PhonePrototypes.extraShort, -1));
             Symbols.Add(PhonePrototypes.@long.Symbol.XSampa,
                 new Diacritic(PhonePrototypes.@long, -1));

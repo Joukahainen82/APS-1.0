@@ -1,18 +1,19 @@
-﻿using APS_2.Phonetics;
-using APS_2.Phonetics.Enums;
+﻿using APS_1.Phonetics;
+using APS_1.Phonetics.Enums;
+using APS_1.Symbols.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Symbols
+namespace APS_1.Symbols
 {
     public class Diacritic : Phone
     {
         #region Properties
 
-        //public DiacriticPlace ModificationDirection { get; set; }
+        public DiacriticPlace ModificationDirection { get; set; }
 
         public Nullable<Stress> Stress { get; set; }
         public Nullable<Palatalization> Palatalization { get; set; }
@@ -25,7 +26,7 @@ namespace APS_2.Symbols
         public Diacritic(Phone phone, int diacriticImpact = 0)
         {
             this.Context = phone.Context;
-            //this.Example = phone.Example;
+            this.Example = phone.Example;
             this.Length = phone.Length;
             this.Nasality = phone.Nasality;
             this.Phonation = phone.Phonation;
@@ -40,7 +41,7 @@ namespace APS_2.Symbols
             this.Palatalization = phone.Palatalization;
 
             this.Context = phone.Context;
-            //this.Example = phone.Example;
+            this.Example = phone.Example;
             this.Length = phone.Length;
             this.Nasality = phone.Nasality;
             this.Phonation = phone.Phonation;
@@ -55,7 +56,7 @@ namespace APS_2.Symbols
             this.Stress = phone.Stress;
 
             this.Context = phone.Context;
-            //this.Example = phone.Example;
+            this.Example = phone.Example;
             this.Length = phone.Length;
             this.Nasality = phone.Nasality;
             this.Phonation = phone.Phonation;
@@ -84,7 +85,7 @@ namespace APS_2.Symbols
                 Retroflex = cons.Retroflex,
 
                 Context = phone.Context == null ? cons.Context : phone.Context,
-                //Example = phone.Example == null ? cons.Example : phone.Example,
+                Example = phone.Example == null ? cons.Example : phone.Example,
                 Speaker = phone.Speaker == null ? cons.Speaker : phone.Speaker,
                 Length = phone.Length == null ? cons.Length : phone.Length,
 
@@ -117,10 +118,10 @@ namespace APS_2.Symbols
                 Speaker = p.Speaker == null ? v.Speaker : p.Speaker,
                 Length = p.Length == null ? v.Length : p.Length,
                 Context = p.Context == null ? v.Context : p.Context,
-                //Example = p.Example == null ? v.Example : p.Example,
+                Example = p.Example == null ? v.Example : p.Example,
 
                 DiacriticImpact = v.DiacriticImpact,
-                
+
 
             };
         }

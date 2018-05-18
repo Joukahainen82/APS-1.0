@@ -2,15 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace APS_2.Phonetics.Enums
+namespace APS_1.Phonetics
 {
     public enum Phonation
     {
-        breathy = -1,
-        voiceless = 0,
-        voiced = 1,
+        breathy = -1, 
+        voiceless = 0, 
+        voiced = 1, 
         creaky = 2
     }
 }

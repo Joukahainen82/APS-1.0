@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace APS_1.Phonetics.Enums
 {
-    public enum Palatalization
+    public enum OldPolishVowels
     {
-        unpalatalized, 
-        palatalized
+        allVowels, 
+        i, y, e, e_long, a, a_long, o, o_long, u, ę, ą
     }
 }

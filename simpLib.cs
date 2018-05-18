@@ -1,11 +1,12 @@
-﻿using APS_2.Phonetics;
+﻿using APS_1.Phonetics;
+using APS_1.Symbols.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Symbols.Library
+namespace APS_1.Symbols.Library
 {
     public class simpLib : Library
     {
@@ -230,7 +231,7 @@ namespace APS_2.Symbols.Library
             Symbols.Add(PhonePrototypes.unknownPhoneDelimiter2a.Symbol.Simplified, PhonePrototypes.unknownPhoneDelimiter2a);
             Symbols.Add(PhonePrototypes.unknownPhoneDelimiter2b.Symbol.Simplified, PhonePrototypes.unknownPhoneDelimiter2b);
             Symbols.Add(PhonePrototypes.unknownPhoneDelimiter3.Symbol.Simplified, PhonePrototypes.unknownPhoneDelimiter3);
-
+            
 
             #endregion
 
@@ -240,7 +241,7 @@ namespace APS_2.Symbols.Library
             #region: Vowel diacritics
 
             Symbols.Add(
-                PhonePrototypes.@long.Symbol.Simplified,
+                PhonePrototypes.@long.Symbol.Simplified, 
                 new Diacritic(PhonePrototypes.@long, -1));
             Symbols.Add(
                 PhonePrototypes.nasal.Symbol.Simplified,
@@ -253,7 +254,7 @@ namespace APS_2.Symbols.Library
             Symbols.Add(
                 PhonePrototypes.palatalized1.Symbol.Simplified,
                 new Diacritic(PhonePrototypes.palatalized1, -1));
-
+                        
             #endregion
 
 
@@ -506,7 +507,7 @@ namespace APS_2.Symbols.Library
 
             //#endregion
 
-
+            
 
 
             #endregion

@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace APS_1.Phonetics
+namespace APS_1.ApsManager
 {
-    public enum Rhoticity
+    public enum ExcerptNo
     {
-        nonRhotic, 
-        rhotic
+        bothExcerpts, 
+        beginning, 
+        end
     }
 }

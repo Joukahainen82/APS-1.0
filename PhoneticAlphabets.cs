@@ -4,11 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_1.Phonetics.Enums
+namespace APS_1.Symbols.Enums
 {
-    public enum Palatalization
+    enum PhoneticAlphabets
     {
-        unpalatalized, 
-        palatalized
+        IPA, 
+        SAMPA, 
+        simplified
     }
 }

@@ -1,18 +1,15 @@
-﻿using APS_2.ApsManager.Enums;
-using CsvHelper.Configuration;
+﻿using CsvHelper.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.ApsManager
+namespace APS_1.ApsManager
 {
     public class Speaker
     {
-
-        #region Properties
-
         public string RecordingNo { get; set; }
         public string Surname { get; set; }
         public string Name { get; set; }
@@ -42,23 +39,8 @@ namespace APS_2.ApsManager
 
         public bool RecordYearCertain { get; set; }
 
-        #endregion 
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
-
-
 
 
     sealed class SpeakerMap : CsvClassMap<Speaker>
@@ -94,7 +76,6 @@ namespace APS_2.ApsManager
 
         }
     }
-
 
 
 
@@ -262,10 +243,10 @@ namespace APS_2.ApsManager
 
             if (age >= 60) return Age.old;
 
-            else if (age >= 60) return Age.middleAged;
+            else if (age >= 30) return Age.middleAged;
 
             else return Age.young;
-
+            
         }
 
         public string ConvertToString(CsvHelper.TypeConversion.TypeConverterOptions options, object value)
@@ -373,25 +354,27 @@ namespace APS_2.ApsManager
     {
         public bool CanConvertFrom(Type type)
         {
-            return type == typeof(ParentsOrigin);
+            return type == typeof(string); 
+            //return type == typeof(ParentsOrigin);
         }
 
         public bool CanConvertTo(Type type)
         {
-            return type == typeof(string);
+            return type == typeof(ParentsOrigin);
+            //return type == typeof(string);
         }
 
         public object ConvertFromString(CsvHelper.TypeConversion.TypeConverterOptions options, string text)
-        {
+        {            
             switch (text)
             {
                 case "matka z tej samej miejscowości":
-                    return ParentsOrigin.motherFromTheSamePlace;
+                    return ParentsOrigin.motherFromTheSamePlace;                      
                 case "oboje z innej miejscowości lub tylko ojciec z tej samej":
                     return ParentsOrigin.bothFromDifferentPlaceOrOnlyFatherFromTheSame;
                 case "oboje z tej samej miejscowości":
                     return ParentsOrigin.bothFromTheSamePlace;
-                default:
+                default: 
                     return ParentsOrigin.noInformation;
             }
         }
@@ -402,7 +385,7 @@ namespace APS_2.ApsManager
         }
     }
 
-
+    
 
     sealed class FileSizeConverter : CsvHelper.TypeConversion.ITypeConverter
     {
@@ -429,8 +412,5 @@ namespace APS_2.ApsManager
     }
 
 
-
-
-
-
+    
 }

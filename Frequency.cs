@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Phonetics
+namespace APS_1.Phonetics
 {
     public class Frequency
     {
@@ -14,15 +14,16 @@ namespace APS_2.Phonetics
         public double F4 { get; set; }
 
 
-        public Frequency()
+        public Frequency() { }
+
+        public Frequency(double F1, double F2, double F3, double F4)
         {
-            F1 = 0;
-            F2 = 0;
-            F3 = 0;
-            F4 = 0;
+            this.F1 = F1;
+            this.F2 = F2;
+            this.F3 = F3;
+            this.F4 = F4; 
         }
 
-
-
+        
     }
 }

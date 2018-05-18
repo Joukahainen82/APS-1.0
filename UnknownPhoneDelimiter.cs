@@ -1,11 +1,11 @@
-﻿using APS_2.Phonetics;
+﻿using APS_1.Phonetics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Symbols
+namespace APS_1.Symbols
 {
     public class UnknownPhoneDelimiter : Phone
     {

@@ -4,11 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_1.Phonetics.Enums
+namespace APS_1.Symbols
 {
-    public enum Palatalization
+    public enum SimplifiedDiacritics
     {
-        unpalatalized, 
-        palatalized
+        _dwukropek, _apostrof, nawiasLewy, nawiasPrawy
     }
 }

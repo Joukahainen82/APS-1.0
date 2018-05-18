@@ -2,17 +2,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace APS_2.Phonetics.Enums
+namespace APS_1.Phonetics
 {
     public enum Frontness
     {
-        front,
-        nearFront,
-        centralFronted,
-        central,
-        centralBacked,
+        front, 
+        nearFront, 
+        centralFronted, 
+        central, 
+        centralBacked, 
         nearBack,
         back
     }

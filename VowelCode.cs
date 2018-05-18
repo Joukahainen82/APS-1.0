@@ -1,26 +1,62 @@
-﻿using APS_2.Phonetics.Enums;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace APS_2.Phonetics
+namespace APS_1.Phonetics
 {
     public class VowelCode
     {
-        public Height Height { get; set; }
+        #region Properties
 
-        public Frontness Frontness { get; set; }
+        public int Height { get; set; }
+        public int Frontness { get; set; }
+        public int Roundness { get; set; }
 
-        public Roundness Roundness { get; set; }
+        #endregion
 
-        public Nasality Nasality { get; set; }
+        #region Methods
 
-        public Rhoticity Rhoticity { get; set; }
+        public string GetSymbol(List<VowelModel> models)
+        {
+            var vowelCode = this.Height.ToString() + this.Frontness.ToString() + this.Roundness.ToString();
 
+            var model = models.Find(x => x.Code.Equals(vowelCode));
 
-        public Phonation Phonation { get; set; }
+            return model.Symbol;
+        }
+
+        public static VowelCode CodeFromString(string code)
+        {
+            var res = new VowelCode();
+
+            if (code.Length == 3)
+            {
+                res.Height = int.Parse(code[0].ToString());
+                res.Frontness = int.Parse(code[1].ToString());
+                res.Roundness = int.Parse(code[2].ToString());
+            }
+            else if (code.Length == 4)
+            {
+                res.Height = int.Parse(code[0].ToString());
+                res.Frontness = int.Parse(code[1].ToString());
+                res.Roundness = int.Parse(code[2].ToString() + code[3].ToString());
+            }
+            else
+            {
+                throw new NotImplementedException("NIE ZAIMPLEMENTOWANO KONWERSJI KODÓW SAMOGŁOSKOWYCH O DŁUGOŚCI INNEJ NIZ 3 I 4 W KLASIE VowelCode");
+            }
+
+            return res;
+        }
+
+        public override string ToString()
+        {
+            return this.Height.ToString() + this.Frontness.ToString() + this.Roundness.ToString();
+        }
+
+        #endregion
 
 
     }
